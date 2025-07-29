@@ -1,0 +1,138 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Feedit Admin Panel Design System - Modern Professional Theme */
+
+@layer base {
+  :root {
+    /* Base colors - Clean and professional */
+    --background: 0 0% 100%;
+    --foreground: 215 28% 17%;
+
+    /* Card system */
+    --card: 0 0% 100%;
+    --card-foreground: 215 28% 17%;
+
+    /* Popover system */
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 28% 17%;
+
+    /* Primary brand - Modern blue */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 217 91% 55%;
+
+    /* Secondary - Subtle gray */
+    --secondary: 215 27% 92%;
+    --secondary-foreground: 215 28% 17%;
+    --secondary-hover: 215 27% 88%;
+
+    /* Muted elements */
+    --muted: 215 27% 92%;
+    --muted-foreground: 215 20% 55%;
+
+    /* Accent colors */
+    --accent: 215 27% 92%;
+    --accent-foreground: 215 28% 17%;
+
+    /* Status colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Borders and inputs */
+    --border: 215 27% 89%;
+    --input: 215 27% 89%;
+    --ring: 217 91% 60%;
+
+    /* Layout elements */
+    --radius: 0.5rem;
+
+    /* Sidebar specific colors */
+    --sidebar-background: 215 28% 17%;
+    --sidebar-foreground: 215 27% 92%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 25% 27%;
+    --sidebar-accent-foreground: 215 27% 92%;
+    --sidebar-border: 215 25% 27%;
+    --sidebar-ring: 217 91% 60%;
+
+    /* Admin specific elements */
+    --admin-header: 0 0% 100%;
+    --admin-header-foreground: 215 28% 17%;
+    --admin-nav-active: 217 91% 60%;
+    --admin-nav-active-foreground: 0 0% 100%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 55%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(215 27% 98%));
+  }
+
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+
+    --card: 224 71% 4%;
+    --card-foreground: 213 31% 91%;
+
+    --popover: 224 71% 4%;
+    --popover-foreground: 213 31% 91%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 224 71% 4%;
+    --primary-hover: 217 91% 65%;
+
+    --secondary: 215 27% 17%;
+    --secondary-foreground: 213 31% 91%;
+    --secondary-hover: 215 27% 22%;
+
+    --muted: 215 27% 17%;
+    --muted-foreground: 217 19% 60%;
+
+    --accent: 215 27% 17%;
+    --accent-foreground: 213 31% 91%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 213 31% 91%;
+    --success: 142 76% 36%;
+    --success-foreground: 213 31% 91%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 224 71% 4%;
+
+    --border: 215 27% 17%;
+    --input: 215 27% 17%;
+    --ring: 217 91% 60%;
+
+    --sidebar-background: 215 28% 17%;
+    --sidebar-foreground: 213 31% 91%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 224 71% 4%;
+    --sidebar-accent: 215 25% 27%;
+    --sidebar-accent-foreground: 213 31% 91%;
+    --sidebar-border: 215 25% 27%;
+    --sidebar-ring: 217 91% 60%;
+
+    --admin-header: 224 71% 4%;
+    --admin-header-foreground: 213 31% 91%;
+    --admin-nav-active: 217 91% 60%;
+    --admin-nav-active-foreground: 224 71% 4%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 65%));
+    --gradient-card: linear-gradient(145deg, hsl(224 71% 4%), hsl(215 27% 17%));
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

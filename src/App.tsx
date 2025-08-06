@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import ForgotPassword from "./pages/ForgotPassword";
 import EmailSent from "./pages/EmailSent";
 import SetNewPassword from "./pages/SetNewPassword";
+import ProductPage from "./pages/ProductPage";
 import PasswordChanged from "./pages/PasswordChanged";
 
 const queryClient = new QueryClient();
@@ -36,14 +37,16 @@ const App = () => (
           <Route path="/email-sent" element={<EmailSent />} />
           <Route path="/set-new-password" element={<SetNewPassword />} />
           <Route path="/password-changed" element={<PasswordChanged />} />
-          
+
           {/* Main layout routes */}
           <Route path="/" element={<MainLayout />}>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="products" element={<Products />} />
+            <Route path="products/new" element={<ProductPage />} />
+            <Route path="products/edit/:id" element={<ProductPage />} />
             <Route path="orders" element={<Orders />} />
             <Route path="customers" element={<Customers />} />
-            <Route path="banners" element={<Banners />} />
+            <Route path="banners" element={<Banners />} />          
           </Route>
           
           {/* Catch all route */}

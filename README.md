@@ -30,8 +30,7 @@
 
 ## 🚀 Live Preview
 
-> 🎯 Coming soon 
-<!-- on [Vercel](https://vercel.com) -->
+> 🎯 Coming soon on [Vercel](https://vercel.com)
 
 ---
 

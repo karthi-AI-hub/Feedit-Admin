@@ -58,10 +58,11 @@ export default function Customers() {
         c.joinDate ? c.joinDate : '-',
         c.pinCode ? c.pinCode : '-',
         c.totalOrders === 0 ? 0 : c.totalOrders || '-',
+        c.rewardPoints !== undefined && c.rewardPoints !== null ? c.rewardPoints : '-',
       ]);
     
     autoTable(doc, {
-      head: [['Customer Name', 'Phone', 'Email', 'Date Joined', 'Pin Code', 'Total Orders']],
+      head: [['Customer Name', 'Phone', 'Email', 'Date Joined', 'Pin Code', 'Total Orders', 'Reward Points']],
       body: tableData,
     });
     const date = new Date();
@@ -82,18 +83,18 @@ export default function Customers() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold mb-6 text-green-700">Customers</h1>
+      <div className="bg-white rounded-2xl shadow p-4 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <h1 className="text-2xl font-bold text-green-700">Customers</h1>
+          <button onClick={handlePrint} className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none">
+            <Printer className="w-5 h-5" /> PRINT
+          </button>
         </div>
-        <button onClick={handlePrint} className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none">
-          <Printer className="w-5 h-5" /> PRINT
-        </button>
       </div>
 
-      {/* Table Card */}
-      <div className="bg-white rounded-2xl shadow p-2 sm:p-4 md:p-8 flex-1 flex flex-col">
-        <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-2 sm:gap-4">
+      {/* Table Card - removed green background and extra padding */}
+      <div className="rounded-2xl shadow p-0 flex-1 flex flex-col">
+        <div className="flex flex-col sm:flex-row items-center justify-between ml-4 mt-4 mb-4 gap-2 sm:gap-4">
           <span className="font-semibold text-base">{customers.length} customers</span>
         </div>
         <div className="overflow-x-auto w-full">
@@ -115,6 +116,7 @@ export default function Customers() {
                   <th className="px-2 sm:px-3 py-2 text-left font-medium">Date Joined</th>
                   <th className="px-2 sm:px-3 py-2 text-left font-medium">Pin Code</th>
                   <th className="px-2 sm:px-3 py-2 text-left font-medium">Total Orders</th>
+                  <th className="px-2 sm:px-3 py-2 text-left font-medium">Reward Points</th>
                 </tr>
               </thead>
               <tbody>
@@ -137,6 +139,7 @@ export default function Customers() {
                     <td className="px-2 sm:px-3 py-2 whitespace-nowrap">{c.joinDate}</td>
                     <td className="px-2 sm:px-3 py-2">{c.pinCode}</td>
                     <td className="px-2 sm:px-3 py-2 text-left">{c.totalOrders}</td>
+                    <td className="px-2 sm:px-3 py-2 text-left">{c.rewardPoints !== undefined && c.rewardPoints !== null ? c.rewardPoints : '-'}</td>
                   </tr>
                 ))}
               </tbody>

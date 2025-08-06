@@ -107,7 +107,7 @@ export default function Products() {
   const animalCategories = ["Cow", "Goat", "Chicken"];
 
   return (
-    <div className="min-h-screen p-2 md:p-4">
+    <div className="min-h-screen">
       {/* Header & Filters */}
       <div className="bg-white rounded-xl shadow p-4 mb-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

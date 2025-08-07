@@ -31,18 +31,33 @@ async function uploadProductImages(images) {
 export async function addProduct(product) {
   const imageUrls = await uploadProductImages(product.images);
 
-  const productData = { ...product };
+  const productData = { 
+    ...product,
+    status: product.status || 'in_stock', // Ensure status is always set
+    category: product.category || 'Feed', // Default category
+    animal: product.animal || 'Cow', // Default animal
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
   delete productData.images; // Not a Firestore-compatible field
   productData.image = imageUrls[0] || ''; // The main image
   productData.gallery = imageUrls; // The full gallery
 
+  console.log('Adding product to Firestore:', productData);
+
   const productsRef = collection(db, 'products');
   const docRef = await addDoc(productsRef, productData);
+  
+  console.log('Product added successfully with ID:', docRef.id);
+  
   return { id: docRef.id, ...productData };
 }
 
 export async function updateProduct(id, updates) {
-  const productData = { ...updates };
+  const productData = { 
+    ...updates,
+    updatedAt: new Date().toISOString()
+  };
 
   // Only process and update image fields if new images are actually passed in.
   if (updates.images && Array.isArray(updates.images)) {
@@ -52,14 +67,21 @@ export async function updateProduct(id, updates) {
     productData.gallery = imageUrls; // The full gallery
   }
 
+  console.log('Updating product in Firestore:', { id, productData });
+
   const productRef = doc(db, 'products', id);
   await updateDoc(productRef, productData);
+  
+  console.log('Product updated successfully');
+  
   return { id, ...productData };
 }
 
 export async function getProducts() {
   const productsRef = collection(db, 'products');
   const snapshot = await getDocs(productsRef);
+  console.log('Fetched products:', snapshot.docs.length);
+  console.log('Fetched products:', snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 

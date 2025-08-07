@@ -39,10 +39,12 @@ const animalIcons = {
 };
 
 export default function Products() {
-  const [activeTab, setActiveTab] = useState("Feed");
-  const [activeAnimal, setActiveAnimal] = useState("Cow");
+  const [activeTab, setActiveTab] = useState("ALL");
+  const [activeAnimal, setActiveAnimal] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("All"); // "All", "in_stock", "out_of_stock"
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -50,21 +52,57 @@ export default function Products() {
   const navigate = useNavigate();
 
   const fetchProducts = async () => {
-    const data = await getProducts();
-    setProducts(data);
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getProducts();
+      console.log('Products fetched in component:', data);
+      console.log('First product details:', data[0]);
+      setProducts(data);
+    } catch (error) {
+      console.error('Error fetching products in component:', error);
+      setError('Failed to fetch products');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchProducts();
   }, []);
 
+  // Debug useEffect to log state changes
+  useEffect(() => {
+    console.log('Products state updated:', products);
+  }, [products]);
+
+  useEffect(() => {
+    console.log('Filters changed:', { activeTab, activeAnimal, statusFilter });
+  }, [activeTab, activeAnimal, statusFilter]);
+
   // Filter products by tab, animal, and status
   const filteredProducts = products.filter(product => {
-    const categoryMatch = product.category?.toLowerCase() === activeTab.toLowerCase();
-    const animalMatch = product.animal?.toLowerCase() === activeAnimal.toLowerCase();
+    console.log('Filtering product:', product.name, {
+      category: product.category,
+      animal: product.animal,
+      status: product.status,
+      activeTab,
+      activeAnimal,
+      statusFilter
+    });
+    
+    const categoryMatch = activeTab === 'ALL' || (product.category && product.category?.toLowerCase() === activeTab.toLowerCase());
+    const animalMatch = activeAnimal === 'ALL' || (product.animal && product.animal?.toLowerCase() === activeAnimal.toLowerCase());
     const statusMatch = statusFilter === 'All' || product.status === statusFilter;
+    
+    console.log('Match results:', { categoryMatch, animalMatch, statusMatch });
+    
     return categoryMatch && animalMatch && statusMatch;
   });
+
+  console.log('Total products:', products.length);
+  console.log('Filtered products:', filteredProducts.length);
+  console.log('Current filters:', { activeTab, activeAnimal, statusFilter });
 
   // Pagination logic
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -103,15 +141,20 @@ export default function Products() {
     }
   };
 
-  const productTabs = ["Feed", "Supplement"];
-  const animalCategories = ["Cow", "Goat", "Chicken"];
+  const productTabs = ["ALL", "Feed", "Supplement"];
+  const animalCategories = ["ALL", "Cow", "Goat", "Chicken"];
 
   return (
     <div className="min-h-screen">
       {/* Header & Filters */}
       <div className="bg-white rounded-xl shadow p-4 mb-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <h1 className="text-2xl font-bold text-green-700">All Products</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-green-700">All Products</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Showing {filteredProducts.length} of {products.length} products
+            </p>
+          </div>
           <Button 
             className="bg-primary w-full md:w-auto" 
             style={{ backgroundColor: '#007539', borderColor: '#007539' }} 
@@ -135,8 +178,14 @@ export default function Products() {
               <SelectContent>
                 {animalCategories.map(animal => (
                   <SelectItem key={animal} value={animal}>
-                    <span className="mr-2">{animalIcons[animal]}</span>
-                    {animal}
+                    {animal === 'ALL' ? (
+                      <span>All Animals</span>
+                    ) : (
+                      <>
+                        <span className="mr-2">{animalIcons[animal]}</span>
+                        {animal}
+                      </>
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -176,7 +225,26 @@ export default function Products() {
       </div>
 
       {/* Products Grid */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {loading ? (
+        <div className="text-center py-10">
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-6 h-6 border-2 border-green-700 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-gray-500">Loading products...</p>
+          </div>
+        </div>
+      ) : error ? (
+        <div className="text-center py-10">
+          <p className="text-red-500">{error}</p>
+          <button 
+            onClick={fetchProducts}
+            className="mt-4 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800"
+          >
+            Retry
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {currentItems.length > 0 ? (
           currentItems.map((product) => (
             <Card 
@@ -186,9 +254,12 @@ export default function Products() {
             >
               <div className="relative flex flex-col items-center p-4 pb-0">
                 <img 
-                  src={product.image} 
+                  src={product.image || product.gallery?.[0] || '/placeholder.svg'} 
                   alt={product.name}
                   className="w-full h-48 object-cover mx-auto rounded-xl border"
+                  onError={(e) => {
+                    e.target.src = '/placeholder.svg';
+                  }}
                 />
                 <TooltipProvider>
                   <Tooltip>
@@ -253,11 +324,11 @@ export default function Products() {
             <p className="text-gray-500">No products found for the selected filters.</p>
           </div>
         )}
-      </div>
+          </div>
 
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="flex justify-center mt-8">
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex justify-center mt-8">
           <Pagination>
             <PaginationContent>
               <PaginationItem>
@@ -300,6 +371,8 @@ export default function Products() {
           </Pagination>
         </div>
       )}
+      </>
+      )}
 
       {/* Product Detail View Dialog */}
       <Dialog open={isDetailViewOpen} onOpenChange={setIsDetailViewOpen}>
@@ -309,9 +382,12 @@ export default function Products() {
               <DialogHeader>
                 <DialogTitle className="text-2xl font-bold text-green-800">{selectedProduct.name}</DialogTitle>
                 <DialogDescription>
+                  Product Details
+                </DialogDescription>
+                <div className="flex gap-2 mt-2">
                   <Badge variant="outline" className="mr-2">{selectedProduct.category}</Badge>
                   <Badge variant="outline">{selectedProduct.animal}</Badge>
-                </DialogDescription>
+                </div>
               </DialogHeader>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                 {/* Left side: Image Carousel */}

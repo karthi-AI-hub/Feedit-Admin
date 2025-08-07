@@ -6,15 +6,19 @@ export default function Banners() {
   const [images, setImages] = useState([]);
   const [newImages, setNewImages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const fileInputRef = useRef(null);
 
   const fetchBanners = async () => {
     setLoading(true);
+    setError('');
     try {
       const bannerList = await fetchBannersAPI();
       setImages(bannerList);
     } catch (error) {
       console.error("Error fetching banners:", error);
+      setError('Failed to fetch banners. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -47,25 +51,32 @@ export default function Banners() {
   };
 
   const toggleActive = async (id, currentStatus) => {
+    if (saving) return; // Prevent multiple clicks
+    
     try {
       await updateBannerStatusAPI(id, !currentStatus);
       setImages(prev => prev.map(img => img.id === id ? { ...img, active: !img.active } : img));
     } catch (error) {
       console.error("Error updating banner status:", error);
+      setError('Failed to update banner status. Please try again.');
     }
   };
 
   const handleSave = async () => {
     if (newImages.length === 0) return;
-    setLoading(true);
+    if (saving) return; // Prevent duplicate submissions
+    
+    setSaving(true);
+    setError('');
     try {
       await Promise.all(newImages.map(image => uploadBannerAPI(image)));
       setNewImages([]);
       await fetchBanners();
     } catch (error) {
       console.error("Error saving banners:", error);
+      setError('Failed to save banners. Please try again.');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -79,15 +90,27 @@ export default function Banners() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <h1 className="text-2xl font-bold text-green-700 mt-0 mb-6">Banner</h1>
+        
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+            {error}
+          </div>
+        )}
+        
         {/* Main Content */}
         <div className="flex flex-col md:flex-row gap-8">
           {/* Dropzone */}
           <div className="md:w-1/2 w-full">
             <div
               className="border-2 border-dashed border-gray-300 rounded-xl bg-white flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:border-green-700 transition"
-              onClick={() => fileInputRef.current && fileInputRef.current.click()}
+              onClick={() => !saving && fileInputRef.current && fileInputRef.current.click()}
               onDrop={handleDrop}
               onDragOver={e => e.preventDefault()}
+              style={{ 
+                opacity: saving ? 0.6 : 1,
+                pointerEvents: saving ? 'none' : 'auto'
+              }}
             >
               <ImageIcon className="w-12 h-12 text-gray-400 mb-2" />
               <div className="text-gray-500 text-center text-sm">
@@ -148,10 +171,27 @@ export default function Banners() {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 justify-end mt-8">
-          <button onClick={handleSave} className="bg-green-700 text-white rounded-lg px-8 py-2 font-semibold hover:bg-green-800 transition w-full sm:w-auto" disabled={loading}>
-            {loading ? 'SAVING...' : 'SAVE'}
+          <button 
+            onClick={handleSave} 
+            className="bg-green-700 text-white rounded-lg px-8 py-2 font-semibold hover:bg-green-800 transition w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed" 
+            disabled={saving || newImages.length === 0}
+          >
+            {saving ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                SAVING...
+              </div>
+            ) : (
+              'SAVE'
+            )}
           </button>
-          <button onClick={handleCancel} className="border border-gray-300 rounded-lg px-8 py-2 font-semibold bg-white hover:bg-gray-100 transition w-full sm:w-auto">CANCEL</button>
+          <button 
+            onClick={handleCancel} 
+            className="border border-gray-300 rounded-lg px-8 py-2 font-semibold bg-white hover:bg-gray-100 transition w-full sm:w-auto disabled:opacity-50" 
+            disabled={saving}
+          >
+            CANCEL
+          </button>
         </div>
       </div>
     </div>

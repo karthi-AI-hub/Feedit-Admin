@@ -9,6 +9,7 @@ const OrderDetails = () => {
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(false);
   const [status, setStatus] = useState('');
+  const [statusError, setStatusError] = useState('');
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -28,13 +29,16 @@ const OrderDetails = () => {
   }, [id]);
 
   const handleStatusUpdate = async () => {
-    if (!order) return;
+    if (!order || updating) return; // Prevent duplicate submissions
+    
     setUpdating(true);
+    setStatusError('');
     try {
       await updateOrderAPI(order.id, { orderStatus: status });
       setOrder({ ...order, orderStatus: status });
     } catch (e) {
-      alert('Failed to update status');
+      console.error('Failed to update status:', e);
+      setStatusError('Failed to update status. Please try again.');
     } finally {
       setUpdating(false);
     }
@@ -52,6 +56,13 @@ const OrderDetails = () => {
           <div className="text-gray-500 text-sm">Order ID: <span className="font-mono">{order.id}</span></div>
         </div>
         <div className="bg-white rounded-2xl shadow p-6 sm:p-8 mb-8">
+          {/* Status Error Display */}
+          {statusError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {statusError}
+            </div>
+          )}
+          
           <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
             <div>
               <div className="text-lg font-semibold mb-2">Order Status</div>
@@ -73,7 +84,14 @@ const OrderDetails = () => {
                   onClick={handleStatusUpdate}
                   disabled={updating || status === order.orderStatus}
                 >
-                  {updating ? 'Updating...' : 'Update'}
+                  {updating ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Updating...
+                    </div>
+                  ) : (
+                    'Update'
+                  )}
                 </button>
               </div>
             </div>

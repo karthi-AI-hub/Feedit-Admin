@@ -1,5 +1,5 @@
 import { db, storage } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, doc, getDocs, getDoc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 async function uploadProductImages(images) {
@@ -80,8 +80,8 @@ export async function updateProduct(id, updates) {
 export async function getProducts() {
   const productsRef = collection(db, 'products');
   const snapshot = await getDocs(productsRef);
-  console.log('Fetched products:', snapshot.docs.length);
-  console.log('Fetched products:', snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  // console.log('Fetched products:', snapshot.docs.length);
+  // console.log('Fetched products:', snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
@@ -92,5 +92,20 @@ export async function getProductById(id) {
     return { id: docSnap.id, ...docSnap.data() };
   } else {
     throw new Error("No such product!");
+  }
+}
+
+export async function deleteProduct(id) {
+  try {
+    console.log('Deleting product with ID:', id);
+    
+    const productRef = doc(db, 'products', id);
+    await deleteDoc(productRef);
+    
+    console.log('Product deleted successfully');
+    return { success: true, id };
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    throw new Error(`Failed to delete product: ${error.message}`);
   }
 }

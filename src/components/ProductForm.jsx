@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DialogFooter } from "@/components/ui/dialog";
-import { addProduct, updateProduct } from "@/services/productsService";
+import { addProduct, updateProduct, deleteProduct } from "@/services/productsService";
 
 export default function ProductForm({
   mode = "add",
@@ -21,6 +21,7 @@ export default function ProductForm({
   categories = [],
   onSave,
   onCancel,
+  onDelete,
 }) {
   // Initial form state
   const emptyProductForm = {
@@ -36,6 +37,7 @@ export default function ProductForm({
     image: "",
     tags: [],
     animal: "",
+    weight: "",
   };
 
   const [productForm, setProductForm] = useState(emptyProductForm);
@@ -43,6 +45,7 @@ export default function ProductForm({
   const [currentTags, setCurrentTags] = useState([]);
   const [newTag, setNewTag] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
 
   // Initialize form with data when editing
@@ -61,6 +64,7 @@ export default function ProductForm({
         image: initialData.image || "",
         tags: initialData.tags || [],
         animal: initialData.animal || "",
+        weight: initialData.weight || "",
       });
       setCurrentTags(initialData.tags || []);
       if (initialData.gallery && Array.isArray(initialData.gallery)) {
@@ -194,6 +198,54 @@ export default function ProductForm({
     }
   };
 
+  const handleDelete = async () => {
+    // Prevent delete if already deleting or no product to delete
+    if (isDeleting || mode !== "edit" || !initialData?.id) return;
+
+    // Confirm deletion
+    const isConfirmed = window.confirm(
+      `Are you sure you want to delete "${productForm.name}"? This action cannot be undone.`
+    );
+
+    if (!isConfirmed) return;
+
+    setIsDeleting(true);
+    setError("");
+
+    try {
+      await deleteProduct(initialData.id);
+      console.log("Product deleted successfully");
+      
+      // Success callback
+      if (onDelete) onDelete(initialData.id);
+      
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      
+      // Enhanced error handling
+      let errorMessage = "Failed to delete product. ";
+      
+      if (error.code === 'permission-denied') {
+        errorMessage += "You don't have permission to delete this product.";
+      } else if (error.code === 'network-request-failed') {
+        errorMessage += "Network error. Please check your internet connection.";
+      } else if (error.message) {
+        errorMessage += error.message;
+      } else {
+        errorMessage += "Please try again.";
+      }
+      
+      setError(errorMessage);
+      
+      // Show alert for critical errors
+      if (error.code === 'permission-denied') {
+        alert("Access Denied: Unable to delete product. Please contact administrator.");
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <form onSubmit={handleSave}>
       {/* Enhanced error display */}
@@ -315,6 +367,23 @@ export default function ProductForm({
                 value={productForm.stockQuantity}
                 onChange={handleInputChange}
                 placeholder="211"
+                disabled={isLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="weight">
+                {productForm.category === "Feed" ? "Weight (KG)" : 
+                 productForm.category === "Supplement" ? "Volume (ML)" : "Weight/Volume"}
+              </Label>
+              <Input
+                id="weight"
+                name="weight"
+                type="number"
+                step="0.1"
+                value={productForm.weight}
+                onChange={handleInputChange}
+                placeholder={productForm.category === "Feed" ? "1.5" : 
+                           productForm.category === "Supplement" ? "250" : "Enter value"}
                 disabled={isLoading}
               />
             </div>
@@ -464,30 +533,60 @@ export default function ProductForm({
       </div>
 
       <DialogFooter>
-        <Button
-          variant="outline"
-          type="button"
-          onClick={onCancel}
-          disabled={isLoading}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          disabled={isLoading || !productForm.name.trim()}
-          style={{ backgroundColor: isLoading ? "#9CA3AF" : "#007539" }}
-        >
-          {isLoading ? (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              {mode === "add" ? "Adding Product..." : "Updating Product..."}
-            </div>
-          ) : mode === "add" ? (
-            "Add Product"
-          ) : (
-            "Update Product"
-          )}
-        </Button>
+        <div className="flex items-center justify-between w-full mt-4">
+          {/* Left side - Delete button (only in edit mode) */}
+          <div>
+            {mode === "edit" && (
+              <Button
+                variant="destructive"
+                type="button"
+                onClick={handleDelete}
+                disabled={isLoading || isDeleting}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {isDeleting ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Deleting...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Trash2 className="h-4 w-4" />
+                    Delete Product
+                  </div>
+                )}
+              </Button>
+            )}
+          </div>
+
+          {/* Right side - Cancel and Save buttons */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              type="button"
+              onClick={onCancel}
+              disabled={isLoading || isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isLoading || isDeleting || !productForm.name.trim()}
+              style={{ backgroundColor: (isLoading || isDeleting) ? "#9CA3AF" : "#007539" }}
+            >
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  {mode === "add" ? "Adding Product..." : "Updating Product..."}
+                </div>
+              ) : mode === "add" ? (
+                "Add Product"
+              ) : (
+                "Update Product"
+              )}
+            </Button>
+          </div>
+        </div>
       </DialogFooter>
     </form>
   );

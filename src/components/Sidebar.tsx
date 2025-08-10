@@ -4,8 +4,8 @@ import { LayoutDashboard, Package, Users, List, ChevronDown, FileWarning, Image 
 const menu = [
   { label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
   { label: 'Products', icon: Package, to: '/products' },
-  { label: 'Customer', icon: Users, to: '/customers' },
-  { label: 'Order List', icon: List, to: '/orders' },
+  { label: 'Customers', icon: Users, to: '/customers' },
+  { label: 'Orders', icon: List, to: '/orders' },
   { label: 'Banners', icon: Image, to: '/banners' },
 ];
 

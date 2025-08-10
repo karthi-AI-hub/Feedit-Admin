@@ -1,6 +1,6 @@
 import { db, storage } from '../lib/firebase';
-import { collection, getDocs, doc, updateDoc, addDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { collection, getDocs, doc, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 export const fetchBannersAPI = async () => {
   const bannersCollection = collection(db, 'banners');
@@ -25,4 +25,28 @@ export const uploadBannerAPI = async (image) => {
   });
 
   return { id: docRef.id, name: image.name, url: downloadURL, active: image.active };
+};
+
+export const deleteBannerAPI = async (id, imageName, imageUrl) => {
+  try {
+    // Delete from Firestore
+    const bannerRef = doc(db, 'banners', id);
+    await deleteDoc(bannerRef);
+
+    // Delete from Storage
+    if (imageName) {
+      const storageRef = ref(storage, `banners/${imageName}`);
+      try {
+        await deleteObject(storageRef);
+      } catch (storageError) {
+        console.warn('Failed to delete image from storage:', storageError);
+        // Continue even if storage deletion fails
+      }
+    }
+
+    return { success: true, id };
+  } catch (error) {
+    console.error('Error deleting banner:', error);
+    throw new Error(`Failed to delete banner: ${error.message}`);
+  }
 };

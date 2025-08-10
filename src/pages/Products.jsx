@@ -56,8 +56,8 @@ export default function Products() {
       setLoading(true);
       setError(null);
       const data = await getProducts();
-      console.log('Products fetched in component:', data);
-      console.log('First product details:', data[0]);
+      // console.log('Products fetched in component:', data);
+      // console.log('First product details:', data[0]);
       setProducts(data);
     } catch (error) {
       console.error('Error fetching products in component:', error);
@@ -73,11 +73,11 @@ export default function Products() {
 
   // Debug useEffect to log state changes
   useEffect(() => {
-    console.log('Products state updated:', products);
+    // console.log('Products state updated:', products);
   }, [products]);
 
   useEffect(() => {
-    console.log('Filters changed:', { activeTab, activeAnimal, statusFilter });
+    // console.log('Filters changed:', { activeTab, activeAnimal, statusFilter });
   }, [activeTab, activeAnimal, statusFilter]);
 
   // Filter products by tab, animal, and status
@@ -95,14 +95,14 @@ export default function Products() {
     const animalMatch = activeAnimal === 'ALL' || (product.animal && product.animal?.toLowerCase() === activeAnimal.toLowerCase());
     const statusMatch = statusFilter === 'All' || product.status === statusFilter;
     
-    console.log('Match results:', { categoryMatch, animalMatch, statusMatch });
+    // console.log('Match results:', { categoryMatch, animalMatch, statusMatch });
     
     return categoryMatch && animalMatch && statusMatch;
   });
 
-  console.log('Total products:', products.length);
-  console.log('Filtered products:', filteredProducts.length);
-  console.log('Current filters:', { activeTab, activeAnimal, statusFilter });
+  // console.log('Total products:', products.length);
+  // console.log('Filtered products:', filteredProducts.length);
+  // console.log('Current filters:', { activeTab, activeAnimal, statusFilter });
 
   // Pagination logic
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -155,15 +155,34 @@ export default function Products() {
               Showing {filteredProducts.length} of {products.length} products
             </p>
           </div>
-          <Button 
-            className="bg-primary w-full md:w-auto" 
-            style={{ backgroundColor: '#007539', borderColor: '#007539' }} 
-            size="sm"
-            onClick={handleAddNewProduct}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            ADD NEW PRODUCT
-          </Button>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+            <button
+              className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none"
+              onClick={fetchProducts}
+              disabled={loading}
+            >
+              <svg 
+                className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                viewBox="0 0 24 24"
+                style={loading ? { animationDirection: 'reverse' } : {}}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+              Refresh
+            </button>
+            <Button 
+              className="bg-primary w-full md:w-auto" 
+              style={{ backgroundColor: '#007539', borderColor: '#007539' }} 
+              size="sm"
+              onClick={handleAddNewProduct}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              ADD NEW PRODUCT
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -229,7 +248,7 @@ export default function Products() {
         <div className="text-center py-10">
           <div className="flex items-center justify-center gap-2">
             <div className="w-6 h-6 border-2 border-green-700 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-gray-500">Loading products...</p>
+            <p className="text-gray-500">Loading Products...</p>
           </div>
         </div>
       ) : error ? (
@@ -427,6 +446,18 @@ export default function Products() {
                     <div className="flex justify-between"><strong>Brand:</strong> <span>{selectedProduct.brand}</span></div>
                     <div className="flex justify-between"><strong>SKU:</strong> <span>{selectedProduct.sku}</span></div>
                     <div className="flex justify-between"><strong>Stock:</strong> <span>{selectedProduct.stockQuantity}</span></div>
+                    <div className="flex justify-between">
+                      <strong>
+                        {selectedProduct.category === "Feed" ? "Weight:" : 
+                         selectedProduct.category === "Supplement" ? "Volume:" : "Weight/Volume:"}
+                      </strong> 
+                      <span>
+                        {selectedProduct.weight ? 
+                          `${selectedProduct.weight} ${selectedProduct.category === "Feed" ? "KG" : 
+                                                       selectedProduct.category === "Supplement" ? "ML" : ""}` 
+                          : "-"}
+                      </span>
+                    </div>
                   </div>
                   <div className="border-t pt-4">
                     <h4 className="font-semibold text-gray-800 mb-2">Tags</h4>

@@ -1,50 +1,67 @@
-import { Search, Bell, ChevronDown, Menu } from "lucide-react";
+import { ChevronDown, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useNavigate } from "react-router-dom";
 
 export function Header({ sidebarOpen, setSidebarOpen }) {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // Clear any stored authentication data
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    sessionStorage.clear();
+    
+    // Redirect to login page
+    navigate('/login');
+  };
+
   return (
-    <header className="h-auto min-h-16 border-b bg-background flex flex-row items-center justify-between px-2 sm:px-6 shadow-sm z-30 sticky top-0 gap-2">
-      <div className="flex items-center gap-2 sm:gap-4 py-2 sm:py-0 flex-1">
+    <header className="h-16 border-b bg-white flex flex-row items-center justify-between px-4 sm:px-6 shadow-sm z-30 sticky top-0">
+      <div className="flex items-center gap-4 flex-1">
         <button
-          className="md:hidden mr-2 bg-white border border-gray-200 rounded-full p-2 shadow hover:bg-gray-100 focus:outline-none"
+          className="md:hidden bg-white border border-gray-300 rounded-lg p-2 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all duration-200"
           onClick={() => setSidebarOpen(true)}
           aria-label="Open sidebar"
         >
-          <Menu className="w-6 h-6 text-gray-700" />
+          <Menu className="w-5 h-5 text-gray-600" />
         </button>
-        <div className="relative flex-1 max-w-full sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search..."
-            className="pl-10 w-full h-10 rounded-lg bg-gray-50 border border-gray-200 focus:border-green-700 focus:ring-green-700 transition"
-          />
-        </div>
       </div>
-      <div className="flex items-center gap-2 sm:gap-4 justify-end">
-        <Button variant="ghost" size="sm" className="relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute -top-1 -right-1 h-4 w-4 bg-destructive rounded-full text-xs text-destructive-foreground flex items-center justify-center">
-            3
-          </span>
-        </Button>
+      
+      {/* Centered Title */}
+      <div className="absolute left-1/2 transform -translate-x-1/2 hidden md:block">
+        <h1 className="text-xl font-bold text-green-600">Feedit Admin Panel</h1>
+      </div>
+      
+      <div className="flex items-center justify-end">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-2 h-9 px-3">
-              <span className="text-sm font-medium">ADMIN</span>
-              <ChevronDown className="h-4 w-4" />
+            <Button 
+              variant="ghost" 
+              className="flex items-center gap-2 h-10 px-4 rounded-lg hover:bg-gray-100 transition-colors duration-200 border border-transparent hover:border-gray-200"
+            >
+              <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                <span className="text-sm font-medium text-white">A</span>
+              </div>
+              <span className="text-sm font-medium text-gray-700 hidden sm:block">ADMIN</span>
+              <ChevronDown className="h-4 w-4 text-gray-500" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 rounded-xl shadow-lg border border-gray-100 mt-2">
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem>Logout</DropdownMenuItem>
+          <DropdownMenuContent align="end" className="w-48 rounded-lg shadow-lg border border-gray-200 mt-2 bg-white">
+            <DropdownMenuItem 
+              onClick={handleLogout}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 focus:bg-red-50 focus:text-red-700 cursor-pointer rounded-md m-1 transition-colors duration-150"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Logout
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

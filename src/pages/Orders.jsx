@@ -15,7 +15,7 @@ export default function Orders() {
     setError(null);
     try {
       const data = await fetchOrdersAPI();
-      console.log('Fetched orders from Firestore:', data);
+      // console.log('Fetched orders from Firestore:', data);
       setOrders(data);
     } catch (err) {
       setError('Failed to fetch orders');
@@ -35,18 +35,6 @@ export default function Orders() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <h1 className="text-2xl font-bold text-green-700">Order List</h1>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
-
-            <button className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none">
-              <Printer className="w-5 h-5" /> PRINT
-            </button>
-            <button
-              className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none"
-              onClick={fetchOrders}
-              disabled={loading}
-            >
-              <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582M20 20v-5h-.581M5.635 19.364A9 9 0 104.582 9.582" /></svg>
-              Refresh
-            </button>
             <select
               className="border border-gray-200 rounded-lg px-4 py-2 bg-white shadow text-sm font-medium min-w-[160px] focus:outline-none focus:ring-2 focus:ring-green-200 w-full sm:w-fit"
               value={statusFilter}
@@ -58,6 +46,26 @@ export default function Orders() {
               <option value="processing">On Process</option>
               <option value="placed">Placed</option>
             </select>
+            <button
+              className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none"
+              onClick={fetchOrders}
+              disabled={loading}
+            >
+              <svg 
+                className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                viewBox="0 0 24 24"
+                style={loading ? { animationDirection: 'reverse' } : {}}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+              Refresh
+            </button>
+            <button className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none">
+              <Printer className="w-5 h-5" /> PRINT
+            </button>
           </div>
         </div>
       </div>
@@ -66,9 +74,22 @@ export default function Orders() {
         <h2 className="text-xl font-bold mb-6">Recent Orders</h2>
         <div className="overflow-x-auto">
           {loading ? (
-            <div className="text-center py-8">Loading orders...</div>
+            <div className="text-center py-10">
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-6 h-6 border-2 border-green-700 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-gray-500">Loading Orders...</p>
+              </div>
+            </div>
           ) : error ? (
-            <div className="text-center text-red-500 py-8">{error}</div>
+            <div className="text-center py-10">
+              <p className="text-red-500">{error}</p>
+              <button 
+                onClick={fetchOrders}
+                className="mt-4 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800"
+              >
+                Retry
+              </button>
+            </div>
           ) : (
             <table className="w-full table-auto text-sm rounded-xl overflow-hidden">
               <thead className="bg-green-700 text-white">

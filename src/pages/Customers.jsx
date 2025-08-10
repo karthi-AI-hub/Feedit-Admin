@@ -11,19 +11,21 @@ export default function Customers() {
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const PAGE_SIZE = 10;
 
+  // Fetch customers function for reuse
+  const fetchCustomers = async () => {
+    setLoading(true);
+    try {
+      const customerList = await fetchCustomersAPI();
+      setCustomers(customerList);
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const getCustomers = async () => {
-      setLoading(true);
-      try {
-        const customerList = await fetchCustomersAPI();
-        setCustomers(customerList);
-      } catch (error) {
-        console.error("Error fetching customers:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    getCustomers();
+    fetchCustomers();
   }, []);
 
   const totalPages = Math.ceil(customers.length / PAGE_SIZE);
@@ -86,9 +88,28 @@ export default function Customers() {
       <div className="bg-white rounded-2xl shadow p-4 mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <h1 className="text-2xl font-bold text-green-700">Customers</h1>
-          <button onClick={handlePrint} className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none">
-            <Printer className="w-5 h-5" /> PRINT
-          </button>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+            <button
+              className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none"
+              onClick={fetchCustomers}
+              disabled={loading}
+            >
+              <svg 
+                className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                viewBox="0 0 24 24"
+                style={loading ? { animationDirection: 'reverse' } : {}}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+              Refresh
+            </button>
+            <button onClick={handlePrint} className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none">
+              <Printer className="w-5 h-5" /> PRINT
+            </button>
+          </div>
         </div>
       </div>
 
@@ -98,7 +119,14 @@ export default function Customers() {
           <span className="font-semibold text-base">{customers.length} customers</span>
         </div>
         <div className="overflow-x-auto w-full">
-          {loading ? <p>Loading...</p> : (
+          {loading ? (
+            <div className="text-center py-10">
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-6 h-6 border-2 border-green-700 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-gray-500">Loading Customers...</p>
+              </div>
+            </div>
+          ) : (
             <table className="min-w-[900px] w-full table-auto text-xs sm:text-sm rounded-xl overflow-hidden">
               <thead className="bg-[#F5F5F5] text-gray-700">
                 <tr>

@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { fetchOrderByIdAPI, updateOrderAPI } from '../services/ordersService';
 import { Timestamp } from 'firebase/firestore';
+import { getDatabase, ref, set } from 'firebase/database';
 
 const OrderDetails = () => {
   const { id } = useParams();
@@ -53,7 +54,28 @@ const OrderDetails = () => {
         updates.orderCancelled = now;
       }
       
+      // Update Firestore
       await updateOrderAPI(order.id, updates);
+      
+      // Add to Firebase Realtime Database for any status change
+      try {
+        const database = getDatabase();
+        const orderRef = ref(database, `orderStatus/${order.id}`);
+        await set(orderRef, {
+          documentId: order.id,
+          previousStatus: order.orderStatus,
+          finalStatus: status,
+          updatedAt: new Date().toISOString(),
+          confirmedAt: status === 'CONFIRMED' ? now.toDate().toISOString() : null,
+          deliveredAt: status === 'DELIVERED' ? now.toDate().toISOString() : null,
+          cancelledAt: status === 'CANCELLED' ? now.toDate().toISOString() : null
+        });
+        console.log('Order status update added to realtime database successfully');
+      } catch (realtimeError) {
+        console.error('Failed to add order status update to realtime database:', realtimeError);
+        // Don't throw error here to avoid blocking the main update
+      }
+      
       setOrder({ ...order, ...updates });
       setStatus(''); // Reset status dropdown
       setExpectedDeliveryInput(''); // Reset date picker

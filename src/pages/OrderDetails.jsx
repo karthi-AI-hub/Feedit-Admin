@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { fetchOrderByIdAPI, updateOrderAPI } from '../services/ordersService';
+import { Timestamp } from 'firebase/firestore';
 
 const OrderDetails = () => {
   const { id } = useParams();
@@ -11,6 +12,7 @@ const OrderDetails = () => {
   const [updating, setUpdating] = useState(false);
   const [status, setStatus] = useState('');
   const [statusError, setStatusError] = useState('');
+  const [expectedDeliveryInput, setExpectedDeliveryInput] = useState('');
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -31,12 +33,30 @@ const OrderDetails = () => {
 
   const handleStatusUpdate = async () => {
     if (!order || updating) return; // Prevent duplicate submissions
-    
     setUpdating(true);
     setStatusError('');
     try {
-      await updateOrderAPI(order.id, { orderStatus: status });
-      setOrder({ ...order, orderStatus: status });
+      let updates = { orderStatus: status };
+      const now = Timestamp.now();
+      
+      // Add appropriate timestamps based on status change
+      if (status === 'CONFIRMED') {
+        updates.orderConfirmed = now;
+        if (expectedDeliveryInput) {
+          updates.expectedDelivery = Timestamp.fromDate(new Date(expectedDeliveryInput));
+        } else {
+          updates.expectedDelivery = Timestamp.fromDate(new Date(Date.now() + 4 * 24 * 60 * 60 * 1000));
+        }
+      } else if (status === 'DELIVERED') {
+        updates.orderDelivered = now;
+      } else if (status === 'CANCELLED') {
+        updates.orderCancelled = now;
+      }
+      
+      await updateOrderAPI(order.id, updates);
+      setOrder({ ...order, ...updates });
+      setStatus(''); // Reset status dropdown
+      setExpectedDeliveryInput(''); // Reset date picker
     } catch (e) {
       console.error('Failed to update status:', e);
       setStatusError('Failed to update status. Please try again.');
@@ -154,12 +174,35 @@ const OrderDetails = () => {
                 className="border rounded-lg px-3 py-2 text-sm bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
                 disabled={updating}
               >
-                <option value="">Change Status</option>
-                <option value="Placed">Placed</option>
-                <option value="Processing">Processing</option>
-                <option value="Delivered">Delivered</option>
-                <option value="Cancelled">Cancelled</option>
+                {/* Show current status as default */}
+                <option value={order.orderStatus}>{order.orderStatus || 'Current Status'}</option>
+                {/* Show valid next statuses based on current order status */}
+                {order.orderStatus?.toLowerCase() === 'placed' && (
+                  <>
+                    <option value="CONFIRMED">Confirm Order</option>
+                    <option value="CANCELLED">Cancel Order</option>
+                  </>
+                )}
+                {order.orderStatus?.toLowerCase() === 'confirmed' && (
+                  <>
+                    <option value="DELIVERED">Mark as Delivered</option>
+                    <option value="CANCELLED">Cancel Order</option>
+                  </>
+                )}
+                {/* If order is already delivered or cancelled, no further changes allowed */}
               </select>
+              {/* Date Picker for Expected Delivery - Only show when confirming order */}
+              {status === 'CONFIRMED' && (
+                <input
+                  type="date"
+                  value={expectedDeliveryInput}
+                  onChange={e => setExpectedDeliveryInput(e.target.value)}
+                  className="border rounded-lg px-3 py-2 text-sm bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                  disabled={updating}
+                  placeholder="Expected Delivery Date"
+                  style={{ minWidth: '140px' }}
+                />
+              )}
               <button className="bg-gray-100 p-2 rounded">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -318,68 +361,68 @@ const OrderDetails = () => {
 
                 {/* Progress Line */}
                 <div className={`flex-1 h-0.5 mx-4 ${
-                  order.orderStatus === 'Processing' || order.orderStatus === 'Shipped' || order.orderStatus === 'Delivered' 
+                  order.orderStatus?.toLowerCase() === 'confirmed' || order.orderStatus?.toLowerCase() === 'delivered' 
                     ? 'bg-green-500' 
                     : 'bg-gray-300'
                 }`}></div>
 
-                {/* Order Processing/Shipped */}
+                {/* Order Confirmed */}
                 <div className="flex flex-col items-center flex-1">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
-                    order.orderStatus === 'Processing' || order.orderStatus === 'Shipped' || order.orderStatus === 'Delivered' 
+                    order.orderStatus?.toLowerCase() === 'confirmed' || order.orderStatus?.toLowerCase() === 'delivered' 
                       ? 'bg-green-500' 
                       : 'bg-gray-300'
                   }`}>
                     <svg className={`w-4 h-4 ${
-                      order.orderStatus === 'Processing' || order.orderStatus === 'Shipped' || order.orderStatus === 'Delivered' 
+                      order.orderStatus?.toLowerCase() === 'confirmed' || order.orderStatus?.toLowerCase() === 'delivered' 
                         ? 'text-white' 
                         : 'text-gray-500'
                     }`} fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <div className="text-xs font-medium text-center">Order Processing</div>
+                  <div className="text-xs font-medium text-center">Order Confirmed</div>
                   <div className="text-xs text-gray-500 text-center">
-                    {order.processingDate
-                      ? (typeof order.processingDate === 'object' && order.processingDate.seconds
-                          ? new Date(order.processingDate.seconds * 1000).toLocaleDateString('en-GB', { 
+                    {order.orderConfirmed
+                      ? (typeof order.orderConfirmed === 'object' && order.orderConfirmed.seconds
+                          ? new Date(order.orderConfirmed.seconds * 1000).toLocaleDateString('en-GB', { 
                               day: '2-digit', 
                               month: 'short', 
                               year: 'numeric' 
-                            }) + ', ' + new Date(order.processingDate.seconds * 1000).toLocaleTimeString('en-US', {
+                            }) + ', ' + new Date(order.orderConfirmed.seconds * 1000).toLocaleTimeString('en-US', {
                               hour: '2-digit',
                               minute: '2-digit',
                               hour12: true
                             })
-                          : !isNaN(order.processingDate)
-                            ? new Date(Number(order.processingDate)).toLocaleDateString('en-GB', { 
+                          : !isNaN(order.orderConfirmed)
+                            ? new Date(Number(order.orderConfirmed)).toLocaleDateString('en-GB', { 
                                 day: '2-digit', 
                                 month: 'short', 
                                 year: 'numeric' 
-                              }) + ', ' + new Date(Number(order.processingDate)).toLocaleTimeString('en-US', {
+                              }) + ', ' + new Date(Number(order.orderConfirmed)).toLocaleTimeString('en-US', {
                                 hour: '2-digit',
                                 minute: '2-digit',
                                 hour12: true
                               })
-                            : order.processingDate)
+                            : order.orderConfirmed)
                       : '-'}
                   </div>
                 </div>
 
                 {/* Progress Line */}
                 <div className={`flex-1 h-0.5 mx-4 ${
-                  order.orderStatus === 'Delivered' ? 'bg-green-500' : 'bg-gray-300'
+                  order.orderStatus.toLowerCase() === 'delivered' ? 'bg-green-500' : 'bg-gray-300'
                 }`}></div>
 
                 {/* Order Delivered */}
                 <div className="flex flex-col items-center flex-1">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
-                    order.orderStatus === 'Delivered' ? 'bg-green-500' : 'bg-gray-300'
+                    order.orderStatus.toLowerCase() === 'delivered' ? 'bg-green-500' : 'bg-gray-300'
                   }`}>
                     <svg className={`w-4 h-4 ${
-                      order.orderStatus === 'Delivered' ? 'text-white' : 'text-gray-500'
+                      order.orderStatus.toLowerCase() === 'delivered' ? 'text-white' : 'text-gray-500'
                     }`} fill="currentColor" viewBox="0 0 20 20">
-                      {order.orderStatus === 'Delivered' ? (
+                      {order.orderStatus.toLowerCase() === 'delivered' ? (
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       ) : (
                         <>
@@ -391,28 +434,28 @@ const OrderDetails = () => {
                   </div>
                   <div className="text-xs font-medium text-center">Order Delivered</div>
                   <div className="text-xs text-gray-500 text-center">
-                    {order.deliveredDate
-                      ? (typeof order.deliveredDate === 'object' && order.deliveredDate.seconds
-                          ? new Date(order.deliveredDate.seconds * 1000).toLocaleDateString('en-GB', { 
+                    {order.orderDelivered
+                      ? (typeof order.orderDelivered === 'object' && order.orderDelivered.seconds
+                          ? new Date(order.orderDelivered.seconds * 1000).toLocaleDateString('en-GB', { 
                               day: '2-digit', 
                               month: 'short', 
                               year: 'numeric' 
-                            }) + ', ' + new Date(order.deliveredDate.seconds * 1000).toLocaleTimeString('en-US', {
+                            }) + ', ' + new Date(order.orderDelivered.seconds * 1000).toLocaleTimeString('en-US', {
                               hour: '2-digit',
                               minute: '2-digit',
                               hour12: true
                             })
-                          : !isNaN(order.deliveredDate)
-                            ? new Date(Number(order.deliveredDate)).toLocaleDateString('en-GB', { 
+                          : !isNaN(order.orderDelivered)
+                            ? new Date(Number(order.orderDelivered)).toLocaleDateString('en-GB', { 
                                 day: '2-digit', 
                                 month: 'short', 
                                 year: 'numeric' 
-                              }) + ', ' + new Date(Number(order.deliveredDate)).toLocaleTimeString('en-US', {
+                              }) + ', ' + new Date(Number(order.orderDelivered)).toLocaleTimeString('en-US', {
                                 hour: '2-digit',
                                 minute: '2-digit',
                                 hour12: true
                               })
-                            : order.deliveredDate)
+                            : order.orderDelivered)
                       : '-'}
                   </div>
                 </div>

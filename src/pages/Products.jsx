@@ -82,14 +82,14 @@ export default function Products() {
 
   // Filter products by tab, animal, and status
   const filteredProducts = products.filter(product => {
-    console.log('Filtering product:', product.name, {
-      category: product.category,
-      animal: product.animal,
-      status: product.status,
-      activeTab,
-      activeAnimal,
-      statusFilter
-    });
+    // console.log('Filtering product:', product.name, {
+    //   category: product.category,
+    //   animal: product.animal,
+    //   status: product.status,
+    //   activeTab,
+    //   activeAnimal,
+    //   statusFilter
+    // });
     
     const categoryMatch = activeTab === 'ALL' || (product.category && product.category?.toLowerCase() === activeTab.toLowerCase());
     const animalMatch = activeAnimal === 'ALL' || (product.animal && product.animal?.toLowerCase() === activeAnimal.toLowerCase());
@@ -101,6 +101,7 @@ export default function Products() {
   });
 
   // console.log('Total products:', products.length);
+
   // console.log('Filtered products:', filteredProducts.length);
   // console.log('Current filters:', { activeTab, activeAnimal, statusFilter });
 
@@ -333,6 +334,18 @@ export default function Products() {
                       <span className="text-muted-foreground">Stock Quantity</span>
                       <span className="font-medium">{product.stockQuantity || 0}</span>
                     </div>
+                    {(product.weight) && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {product.category === "Feed" ? "Weight" : "Weight/Volume"}
+                        </span>
+                        <span className="font-medium">
+                          {product.unit ? 
+                            `${product.weight} ${product.unit}` :
+                            `${product.weight}`}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -448,14 +461,14 @@ export default function Products() {
                     <div className="flex justify-between"><strong>Stock:</strong> <span>{selectedProduct.stockQuantity}</span></div>
                     <div className="flex justify-between">
                       <strong>
-                        {selectedProduct.category === "Feed" ? "Weight:" : 
-                         selectedProduct.category === "Supplement" ? "Volume:" : "Weight/Volume:"}
+                        {selectedProduct.category === "Feed" ? "Weight:" : "Weight/Volume:"}
                       </strong> 
                       <span>
                         {selectedProduct.weight ? 
-                          `${selectedProduct.weight} ${selectedProduct.category === "Feed" ? "KG" : 
-                                                       selectedProduct.category === "Supplement" ? "ML" : ""}` 
-                          : "-"}
+                          selectedProduct.unit ? 
+                            `${selectedProduct.weight} ${selectedProduct.unit}` :
+                            `${selectedProduct.weight}` :
+                          "-"}
                       </span>
                     </div>
                   </div>

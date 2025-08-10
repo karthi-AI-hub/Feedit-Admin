@@ -41,10 +41,10 @@ export default function Orders() {
               onChange={e => setStatusFilter(e.target.value)}
             >
               <option value="all">All</option>
+              <option value="placed">Placed</option>
+              <option value="confirmed">Confirmed</option>
               <option value="delivered">Delivered</option>
               <option value="cancelled">Cancelled</option>
-              <option value="processing">On Process</option>
-              <option value="placed">Placed</option>
             </select>
             <button
               className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none"
@@ -128,7 +128,7 @@ export default function Orders() {
                     }
                     const items = order.product?.cartQuantity ?? '-';
                     const price = order.totalSubPrice ?? '-';
-                    const customer = order.address ? `${order.address.firstname || ''} ${order.address.lastname || ''}`.trim() : '-';
+                    const customer = order.address ? `${order.address.firstName || ''} ${order.address.lastName || ''}`.trim() : '-';
                     const status = order.orderStatus || '-';
                     const avatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(customer || 'Customer');
                     // Use Firestore doc id for navigation
@@ -147,12 +147,13 @@ export default function Orders() {
                         <td className="px-4 py-3">
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-semibold 
-                              ${status === 'Delivered' ? 'bg-green-100 text-green-700 border border-green-400' : ''}
-                              ${status === 'Cancelled' ? 'bg-red-100 text-red-600 border border-red-400' : ''}
-                              ${status === 'Processing' ? 'bg-yellow-100 text-yellow-800 border border-yellow-400' : ''}
+                              ${status.toLowerCase() === 'delivered' ? 'bg-green-100 text-green-700 border border-green-400' : ''}
+                              ${status.toLowerCase() === 'cancelled' ? 'bg-red-100 text-red-600 border border-red-400' : ''}
+                              ${status.toLowerCase() === 'confirmed' ? 'bg-blue-100 text-blue-800 border border-blue-400' : ''}
+                              ${status.toLowerCase() === 'placed' ? 'bg-yellow-100 text-yellow-800 border border-yellow-400' : ''}
                             `}
                           >
-                          {status}
+                          {status.toUpperCase()}
                           </span>
                         </td>
                         <td className="px-4 py-3">

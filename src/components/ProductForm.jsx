@@ -38,6 +38,7 @@ export default function ProductForm({
     tags: [],
     animal: "",
     weight: "",
+    unit: "",
   };
 
   const [productForm, setProductForm] = useState(emptyProductForm);
@@ -65,6 +66,7 @@ export default function ProductForm({
         tags: initialData.tags || [],
         animal: initialData.animal || "",
         weight: initialData.weight || "",
+        unit: initialData.unit || "",
       });
       setCurrentTags(initialData.tags || []);
       if (initialData.gallery && Array.isArray(initialData.gallery)) {
@@ -370,11 +372,11 @@ export default function ProductForm({
                 disabled={isLoading}
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="weight">
-                {productForm.category === "Feed" ? "Weight (KG)" : 
-                 productForm.category === "Supplement" ? "Volume (ML)" : "Weight/Volume"}
-              </Label>
+              <Label htmlFor="weight">Weight/Volume</Label>
               <Input
                 id="weight"
                 name="weight"
@@ -382,11 +384,40 @@ export default function ProductForm({
                 step="0.1"
                 value={productForm.weight}
                 onChange={handleInputChange}
-                placeholder={productForm.category === "Feed" ? "1.5" : 
-                           productForm.category === "Supplement" ? "250" : "Enter value"}
+                placeholder="Enter value"
                 disabled={isLoading}
               />
             </div>
+            {(productForm.category === "Feed" || productForm.category === "Supplement") && (
+              <div className="space-y-2">
+                <Label htmlFor="unit">Unit</Label>
+                <Select
+                  value={productForm.unit}
+                  onValueChange={(value) => handleSelectChange("unit", value)}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger id="unit">
+                    <SelectValue placeholder="Select Unit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {productForm.category === "Feed" && (
+                      <>
+                        <SelectItem value="KG">KG</SelectItem>
+                        <SelectItem value="Grams">Grams</SelectItem>
+                      </>
+                    )}
+                    {productForm.category === "Supplement" && (
+                      <>
+                        <SelectItem value="Litre">Litre</SelectItem>
+                        <SelectItem value="MilliLiter">MilliLiter</SelectItem>
+                        <SelectItem value="Grams">Grams</SelectItem>
+                        <SelectItem value="Bolus">Bolus</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

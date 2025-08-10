@@ -1,8 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { fetchOrderByIdAPI, updateOrderAPI } from '../services/ordersService';
-import { Timestamp } from 'firebase/firestore';
-import { getDatabase, ref, set } from 'firebase/database';
+import { 
+  fetchOrderByIdAPI, 
+  updateOrderStatusAPI 
+} from '../services/ordersService';
 
 const OrderDetails = () => {
   const { id } = useParams();
@@ -37,48 +38,29 @@ const OrderDetails = () => {
     setUpdating(true);
     setStatusError('');
     try {
-      let updates = { orderStatus: status };
-      const now = Timestamp.now();
+      // Prepare additional data for expected delivery
+      let additionalData = {};
       
-      // Add appropriate timestamps based on status change
       if (status === 'CONFIRMED') {
-        updates.orderConfirmed = now;
         if (expectedDeliveryInput) {
-          updates.expectedDelivery = Timestamp.fromDate(new Date(expectedDeliveryInput));
+          additionalData.expectedDelivery = new Date(expectedDeliveryInput).getTime();
         } else {
-          updates.expectedDelivery = Timestamp.fromDate(new Date(Date.now() + 4 * 24 * 60 * 60 * 1000));
+          additionalData.expectedDelivery = Date.now() + 4 * 24 * 60 * 60 * 1000;
         }
-      } else if (status === 'DELIVERED') {
-        updates.orderDelivered = now;
-      } else if (status === 'CANCELLED') {
-        updates.orderCancelled = now;
       }
       
-      // Update Firestore
-      await updateOrderAPI(order.id, updates);
+      // Use the combined service function for both Firestore and Realtime DB updates
+      const result = await updateOrderStatusAPI(
+        order.id, 
+        status, 
+        additionalData
+      );
       
-      // Add to Firebase Realtime Database for any status change
-      try {
-        const database = getDatabase();
-        const orderRef = ref(database, `orderStatus/${order.id}`);
-        await set(orderRef, {
-          documentId: order.id,
-          previousStatus: order.orderStatus,
-          finalStatus: status,
-          updatedAt: new Date().toISOString(),
-          confirmedAt: status === 'CONFIRMED' ? now.toDate().toISOString() : null,
-          deliveredAt: status === 'DELIVERED' ? now.toDate().toISOString() : null,
-          cancelledAt: status === 'CANCELLED' ? now.toDate().toISOString() : null
-        });
-        console.log('Order status update added to realtime database successfully');
-      } catch (realtimeError) {
-        console.error('Failed to add order status update to realtime database:', realtimeError);
-        // Don't throw error here to avoid blocking the main update
-      }
-      
-      setOrder({ ...order, ...updates });
+      // Update local state with the new data
+      setOrder({ ...order, ...result.data });
       setStatus(''); // Reset status dropdown
       setExpectedDeliveryInput(''); // Reset date picker
+      
     } catch (e) {
       console.error('Failed to update status:', e);
       setStatusError('Failed to update status. Please try again.');
@@ -539,8 +521,8 @@ const OrderDetails = () => {
                       <span>₹{order.totalSubPrice ?? '-'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Tax</span>
-                      <span>₹{order.tax ?? '0.00'}</span>
+                      <span>GST</span>
+                      <span>₹{order.gst ?? '0.00'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Discount</span>
@@ -552,7 +534,7 @@ const OrderDetails = () => {
                     </div>
                     <div className="border-t pt-2 flex justify-between font-semibold text-lg">
                       <span>Total</span>
-                      <span>₹{order.totalSubPrice ?? '-'}</span>
+                      <span>₹{order.finalPrice ?? '-'}</span>
                     </div>
                   </div>
                 </div>

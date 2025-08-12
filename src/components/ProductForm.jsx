@@ -27,7 +27,7 @@ export default function ProductForm({
   const emptyProductForm = {
     name: "",
     description: "",
-    category: "",
+    category: "Feed",
     brand: "",
     sku: "",
     stockQuantity: "",
@@ -36,8 +36,9 @@ export default function ProductForm({
     status: "in_stock",
     image: "",
     tags: [],
-    animal: "",
+    animal: "Cow",
     weight: "",
+    unit: "KG",
     unit: "",
   };
 
@@ -91,10 +92,21 @@ export default function ProductForm({
   };
 
   const handleSelectChange = (name, value) => {
-    setProductForm({
+    let updatedForm = {
       ...productForm,
       [name]: value,
-    });
+    };
+
+    // Auto-update unit when category changes
+    if (name === "category") {
+      if (value === "Feed") {
+        updatedForm.unit = "KG";
+      } else if (value === "Supplement") {
+        updatedForm.unit = "Litre";
+      }
+    }
+
+    setProductForm(updatedForm);
   };
 
   const handleAddTag = (e) => {
@@ -144,11 +156,99 @@ export default function ProductForm({
     // Prevent duplicate submissions
     if (isLoading) return;
 
-    // Validation - Check if product name is required
+    // Comprehensive validation before Firebase processing
     if (!productForm.name || productForm.name.trim() === "") {
       setError("Product name is required");
       return;
     }
+
+    if (!productForm.description || productForm.description.trim() === "") {
+      setError("Product description is required");
+      return;
+    }
+
+    if (!productForm.category || productForm.category.trim() === "") {
+      setError("Product category is required");
+      return;
+    }
+
+    if (!productForm.animal || productForm.animal.trim() === "") {
+      setError("Animal selection is required");
+      return;
+    }
+
+    if (!productForm.brand || productForm.brand.trim() === "") {
+      setError("Brand is required");
+      return;
+    }
+
+    if (!productForm.sku || productForm.sku.trim() === "") {
+      setError("SKU is required");
+      return;
+    }
+
+    if (!productForm.stockQuantity || productForm.stockQuantity.trim() === "") {
+      setError("Stock quantity is required");
+      return;
+    }
+
+    if (isNaN(productForm.stockQuantity) || parseInt(productForm.stockQuantity) < 0) {
+      setError("Stock quantity must be a valid positive number");
+      return;
+    }
+
+    if (!productForm.weight || productForm.weight.trim() === "") {
+      setError("Weight/Volume is required");
+      return;
+    }
+
+    if (isNaN(productForm.weight) || parseFloat(productForm.weight) <= 0) {
+      setError("Weight/Volume must be a valid positive number");
+      return;
+    }
+
+    if (!productForm.unit || productForm.unit.trim() === "") {
+      setError("Unit selection is required");
+      return;
+    }
+
+    if (!productForm.regularPrice || productForm.regularPrice.trim() === "") {
+      setError("Regular price is required");
+      return;
+    }
+
+    if (isNaN(productForm.regularPrice) || parseFloat(productForm.regularPrice) <= 0) {
+      setError("Regular price must be a valid positive number");
+      return;
+    }
+
+    if (!productForm.salePrice || productForm.salePrice.trim() === "") {
+      setError("Sale price is required");
+      return;
+    }
+
+    if (isNaN(productForm.salePrice) || parseFloat(productForm.salePrice) <= 0) {
+      setError("Sale price must be a valid positive number");
+      return;
+    }
+
+    // Validation - Check if regular price is greater than sale price
+    const regularPrice = parseFloat(productForm.regularPrice);
+    const salePrice = parseFloat(productForm.salePrice);
+    if (regularPrice <= salePrice) {
+      setError("Regular price must be greater than sale price");
+      return;
+    }
+
+    // if (productImages.length === 0) {
+    //   setError("At least one product image is required");
+    //   return;
+    // }
+
+    // if (!currentTags || currentTags.length === 0) {
+    //   setError("At least one tag is required");
+    //   return;
+    // }
 
     setIsLoading(true);
     setError("");
@@ -278,7 +378,6 @@ export default function ProductForm({
               name="name"
               value={productForm.name}
               onChange={handleInputChange}
-              placeholder="RGS Paal Nathy"
               disabled={isLoading}
               required
               className={!productForm.name && error && error.includes('Product name') ? 'border-red-500' : ''}
@@ -289,27 +388,28 @@ export default function ProductForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">Description *</Label>
             <Textarea
               id="description"
               name="description"
               value={productForm.description}
               onChange={handleInputChange}
-              placeholder="Paal Nathy Cattle Feed Ration is fortified with Amino acids, probiotics, Phobiotic Extracts"
               className="min-h-[100px]"
               disabled={isLoading}
+              required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
+            <Label htmlFor="category">Category *</Label>
             <Select
               value={productForm.category}
               onValueChange={(value) => handleSelectChange("category", value)}
               disabled={isLoading}
+              required
             >
               <SelectTrigger id="category">
-                <SelectValue placeholder="Feed" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Feed">Feed</SelectItem>
@@ -319,14 +419,15 @@ export default function ProductForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="animal">Animal</Label>
+            <Label htmlFor="animal">Animal *</Label>
             <Select
               value={productForm.animal}
               onValueChange={(value) => handleSelectChange("animal", value)}
               disabled={isLoading}
+              required
             >
               <SelectTrigger id="animal">
-                <SelectValue placeholder="Select Animal" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Cow">Cow</SelectItem>
@@ -337,46 +438,49 @@ export default function ProductForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="brand">Brand Name</Label>
+            <Label htmlFor="brand">Brand Name *</Label>
             <Input
               id="brand"
               name="brand"
               value={productForm.brand}
               onChange={handleInputChange}
-              placeholder="RGS"
               disabled={isLoading}
+              required
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="sku">SKU</Label>
+              <Label htmlFor="sku">SKU *</Label>
               <Input
                 id="sku"
                 name="sku"
                 value={productForm.sku}
                 onChange={handleInputChange}
-                placeholder="#32A53"
                 disabled={isLoading}
+                required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="stockQuantity">Stock Quantity</Label>
+              <Label htmlFor="stockQuantity">Stock Quantity *</Label>
               <Input
                 id="stockQuantity"
                 name="stockQuantity"
                 type="number"
                 value={productForm.stockQuantity}
                 onChange={handleInputChange}
-                placeholder="211"
                 disabled={isLoading}
+                required
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="weight">Weight/Volume</Label>
+              <Label htmlFor="weight">
+                {productForm.category === "Feed" ? "Weight" : 
+                 productForm.category === "Supplement" ? "Volume" : "Weight/Volume"}
+              </Label>
               <Input
                 id="weight"
                 name="weight"
@@ -384,7 +488,6 @@ export default function ProductForm({
                 step="0.1"
                 value={productForm.weight}
                 onChange={handleInputChange}
-                placeholder="Enter value"
                 disabled={isLoading}
               />
             </div>
@@ -397,7 +500,7 @@ export default function ProductForm({
                   disabled={isLoading}
                 >
                   <SelectTrigger id="unit">
-                    <SelectValue placeholder="Select Unit" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {productForm.category === "Feed" && (
@@ -429,7 +532,6 @@ export default function ProductForm({
                 type="text"
                 value={productForm.regularPrice}
                 onChange={handleInputChange}
-                placeholder="₹110.40"
                 disabled={isLoading}
               />
             </div>
@@ -441,7 +543,6 @@ export default function ProductForm({
                 type="text"
                 value={productForm.salePrice}
                 onChange={handleInputChange}
-                placeholder="₹450"
                 disabled={isLoading}
               />
             </div>
@@ -478,7 +579,6 @@ export default function ProductForm({
                     handleAddTag(e);
                   }
                 }}
-                placeholder="Add a tag"
                 className="rounded-r-none"
                 disabled={isLoading}
               />

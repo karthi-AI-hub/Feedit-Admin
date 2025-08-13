@@ -67,12 +67,12 @@ export async function updateProduct(id, updates) {
     productData.gallery = imageUrls; // The full gallery
   }
 
-  console.log('Updating product in Firestore:', { id, productData });
+  // console.log('Updating product in Firestore:', { id, productData });
 
   const productRef = doc(db, 'products', id);
   await updateDoc(productRef, productData);
   
-  console.log('Product updated successfully');
+  // console.log('Product updated successfully');
   
   return { id, ...productData };
 }

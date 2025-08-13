@@ -48,7 +48,7 @@ export const deleteOrderAPI = async (id) => {
 // ==================== REALTIME DATABASE OPERATIONS ====================
 
 // Add order status update to Realtime Database
-export const addOrderStatusUpdateToRealtimeDB = async (orderId, finalStatus) => {
+export const addOrderStatusUpdateToRealtimeDB = async (orderId, finalStatus, number) => {
   try {
     const orderRef = ref(database, `orderStatus/${orderId}`);
     const currentTime = Date.now(); // Get current time as milliseconds since epoch
@@ -57,13 +57,14 @@ export const addOrderStatusUpdateToRealtimeDB = async (orderId, finalStatus) => 
       documentId: orderId,
       // previousStatus: previousStatus,
       status: finalStatus,
+      number: number,
       // updatedAt: currentTime,
       confirmedAt: finalStatus === 'CONFIRMED' ? currentTime : null,
       deliveredAt: finalStatus === 'DELIVERED' ? currentTime : null,
       cancelledAt: finalStatus === 'CANCELLED' ? currentTime : null
     });
     
-    console.log('Order status update added to realtime database successfully');
+    // console.log('Order status update added to realtime database successfully');
     return true;
   } catch (error) {
     console.error('Failed to add order status to realtime database:', error);
@@ -121,7 +122,7 @@ export const removeOrderStatusFromRealtimeDB = async (orderId) => {
 // ==================== COMBINED OPERATIONS ====================
 
 // Update order status in both Firestore and Realtime Database
-export const updateOrderStatusAPI = async (orderId, newStatus, additionalData = {}) => {
+export const updateOrderStatusAPI = async (orderId, newStatus, number, additionalData = {}) => {
   try {
     // Prepare Firestore updates
     let firestoreUpdates = { 
@@ -144,7 +145,7 @@ export const updateOrderStatusAPI = async (orderId, newStatus, additionalData = 
     await updateOrderAPI(orderId, firestoreUpdates);
     
     // Update Realtime Database
-    await addOrderStatusUpdateToRealtimeDB(orderId, newStatus);
+    await addOrderStatusUpdateToRealtimeDB(orderId, newStatus, number);
     
     return { success: true, data: firestoreUpdates };
   } catch (error) {

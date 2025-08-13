@@ -1,5 +1,18 @@
 {
   "projects": {
-    "default": "feedit-8c47e"
-  }
+    "default": "feedit-468714"
+  },
+  "targets": {
+    "feedit-468714": {
+      "hosting": {
+        "main": [
+          "feedit-468714"
+        ],
+        "admin": [
+          "feedit-admin"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

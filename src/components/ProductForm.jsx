@@ -49,6 +49,16 @@ export default function ProductForm({
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
+  
+  // Variants state for Supplement products
+  const [variants, setVariants] = useState([]);
+  const [newVariant, setNewVariant] = useState({
+    volume: "",
+    unit: "ML",
+    regularPrice: "",
+    salePrice: "",
+    stockQuantity: ""
+  });
 
   // Initialize form with data when editing
   useEffect(() => {
@@ -75,11 +85,18 @@ export default function ProductForm({
       } else {
         setProductImages([]);
       }
+      // Load variants if they exist
+      if (initialData.variants && Array.isArray(initialData.variants)) {
+        setVariants(initialData.variants);
+      } else {
+        setVariants([]);
+      }
     } else {
       // Reset form for add mode
       setProductForm(emptyProductForm);
       setProductImages([]);
       setCurrentTags([]);
+      setVariants([]);
     }
   }, [initialData, mode]);
 
@@ -101,6 +118,8 @@ export default function ProductForm({
     if (name === "category") {
       if (value === "Feed") {
         updatedForm.unit = "KG";
+        // Clear variants when switching to Feed
+        setVariants([]);
       } else if (value === "Supplement") {
         updatedForm.unit = "Litre";
       }
@@ -129,6 +148,33 @@ export default function ProductForm({
       ...productForm,
       tags: updatedTags,
     });
+  };
+
+  // Variant handlers
+  const addVariant = () => {
+    if (newVariant.volume && newVariant.regularPrice && newVariant.stockQuantity) {
+      // Validate sale price if provided
+      if (newVariant.salePrice && parseFloat(newVariant.salePrice) >= parseFloat(newVariant.regularPrice)) {
+        setError("Sale price must be less than regular price for variants");
+        return;
+      }
+      
+      setVariants([...variants, { ...newVariant }]);
+      setNewVariant({
+        volume: "",
+        unit: "ML",
+        regularPrice: "",
+        salePrice: "",
+        stockQuantity: ""
+      });
+      setError("");
+    } else {
+      setError("Please fill in volume, regular price, and stock quantity for the variant");
+    }
+  };
+
+  const removeVariant = (index) => {
+    setVariants(variants.filter((_, i) => i !== index));
   };
 
   const handleImageUpload = (e) => {
@@ -240,6 +286,12 @@ export default function ProductForm({
       return;
     }
 
+    // Validation - For Supplement products, require at least one variant
+    if (productForm.category === "Supplement" && variants.length === 0) {
+      setError("At least one variant is required for Supplement products");
+      return;
+    }
+
     // if (productImages.length === 0) {
     //   setError("At least one product image is required");
     //   return;
@@ -256,6 +308,8 @@ export default function ProductForm({
     const formData = {
       ...productForm,
       images: productImages.map((img) => img.file || img.preview),
+      // Add variants for Supplement products
+      ...(productForm.category === "Supplement" && variants.length > 0 && { variants: variants })
     };
 
     try {
@@ -479,7 +533,7 @@ export default function ProductForm({
             <div className="space-y-2">
               <Label htmlFor="weight">
                 {productForm.category === "Feed" ? "Weight" : 
-                 productForm.category === "Supplement" ? "Volume" : "Weight/Volume"}
+                 productForm.category === "Supplement" ? "Volume" : "Volume"}
               </Label>
               <Input
                 id="weight"
@@ -662,6 +716,140 @@ export default function ProductForm({
           </div>
         </div>
       </div>
+
+      {/* Variants Section for Supplement products */}
+      {productForm.category === "Supplement" && (
+        <div className="space-y-4 mt-6">
+          <div className="border-t pt-4">
+            <h3 className="text-lg font-medium mb-4">Product Variants</h3>
+            
+            {/* Add New Variant */}
+            <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+              <h4 className="text-sm font-medium text-gray-700">Add New Variant</h4>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="variantVolume">Volume</Label>
+                  <Input
+                    id="variantVolume"
+                    type="number"
+                    value={newVariant.volume}
+                    onChange={(e) => setNewVariant(prev => ({ ...prev, volume: e.target.value }))}
+                    placeholder="500"
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="variantUnit">Unit</Label>
+                  <Select
+                    value={newVariant.unit}
+                    onValueChange={(value) => setNewVariant(prev => ({ ...prev, unit: value }))}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ML">ML</SelectItem>
+                      <SelectItem value="Litre">Litre</SelectItem>
+                      <SelectItem value="Grams">Grams</SelectItem>
+                      <SelectItem value="Bolus">Bolus</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="variantRegularPrice">Regular Price</Label>
+                  <Input
+                    id="variantRegularPrice"
+                    type="number"
+                    value={newVariant.regularPrice}
+                    onChange={(e) => setNewVariant(prev => ({ ...prev, regularPrice: e.target.value }))}
+                    placeholder="150"
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="variantSalePrice">Sale Price</Label>
+                  <Input
+                    id="variantSalePrice"
+                    type="number"
+                    value={newVariant.salePrice}
+                    onChange={(e) => setNewVariant(prev => ({ ...prev, salePrice: e.target.value }))}
+                    placeholder="130"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="variantStock">Stock Quantity</Label>
+                  <Input
+                    id="variantStock"
+                    type="number"
+                    value={newVariant.stockQuantity}
+                    onChange={(e) => setNewVariant(prev => ({ ...prev, stockQuantity: e.target.value }))}
+                    placeholder="50"
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    onClick={addVariant}
+                    disabled={isLoading}
+                    style={{ backgroundColor: "#007539" }}
+                    className="w-full"
+                  >
+                    Add Variant
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Existing Variants List */}
+            {variants.length > 0 && (
+              <div className="space-y-4 mt-4">
+                <h4 className="text-sm font-medium text-gray-700">Current Variants</h4>
+                <div className="space-y-2">
+                  {variants.map((variant, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg bg-white">
+                      <div className="flex items-center space-x-4 text-sm">
+                        <Badge variant="outline" className="bg-green-50 text-green-700">
+                          {variant.volume} {variant.unit}
+                        </Badge>
+                        <span className="text-gray-600">
+                          Regular: ₹{variant.regularPrice}
+                        </span>
+                        {variant.salePrice && (
+                          <span className="text-green-600">
+                            Sale: ₹{variant.salePrice}
+                          </span>
+                        )}
+                        <span className="text-gray-500">
+                          Stock: {variant.stockQuantity}
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removeVariant(index)}
+                        disabled={isLoading}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <DialogFooter>
         <div className="flex items-center justify-between w-full mt-4">

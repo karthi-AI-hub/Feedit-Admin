@@ -337,7 +337,7 @@ export default function Products() {
                     {(product.weight) && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">
-                          {product.category === "Feed" ? "Weight" : "Weight/Volume"}
+                          {product.category === "Feed" ? "Weight" : "Volume"}
                         </span>
                         <span className="font-medium">
                           {product.unit ? 
@@ -461,7 +461,7 @@ export default function Products() {
                     <div className="flex justify-between"><strong>Stock:</strong> <span>{selectedProduct.stockQuantity}</span></div>
                     <div className="flex justify-between">
                       <strong>
-                        {selectedProduct.category === "Feed" ? "Weight:" : "Weight/Volume:"}
+                        {selectedProduct.category === "Feed" ? "Weight:" : "Volume:"}
                       </strong> 
                       <span>
                         {selectedProduct.weight ? 

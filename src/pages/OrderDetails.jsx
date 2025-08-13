@@ -52,7 +52,8 @@ const OrderDetails = () => {
       // Use the combined service function for both Firestore and Realtime DB updates
       const result = await updateOrderStatusAPI(
         order.id, 
-        status, 
+        status,
+        order.number,
         additionalData
       );
       

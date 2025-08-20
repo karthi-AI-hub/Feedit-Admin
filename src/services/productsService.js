@@ -31,17 +31,45 @@ async function uploadProductImages(images) {
 export async function addProduct(product) {
   const imageUrls = await uploadProductImages(product.images);
 
-  const productData = { 
-    ...product,
-    status: product.status || 'in_stock', // Ensure status is always set
+  // Store main product data in variants array for both Feed and Supplement products
+  const mainVariant = {
+    regularPrice: product.regularPrice || 0,
+    salePrice: product.salePrice || 0,
+    stockQuantity: product.stockQuantity || 0,
+    unit: product.unit || '',
+    volume: product.weight || product.volume || '', // Use weight as volume for main variant
+    status: product.status || 'in_stock' // Add status to each variant
+  };
+
+  // Build productData object excluding variant-related fields
+  const { 
+    images, // Exclude images array (input from form)
+    image, // Exclude individual image field
+    regularPrice, 
+    salePrice, 
+    stockQuantity, 
+    unit, 
+    weight, 
+    volume, 
+    status, // Exclude status from main product since it's now in variants
+    variants,
+    ...cleanProductData 
+  } = product;
+
+  const productData = {
+    ...cleanProductData,
     category: product.category || 'Feed', // Default category
     animal: product.animal || 'Cow', // Default animal
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    gallery: imageUrls, // The full gallery
+    createdAt: Date.now(), // Use timestamp as long number
+    updatedAt: Date.now() // Use timestamp as long number
   };
-  delete productData.images; // Not a Firestore-compatible field
-  productData.image = imageUrls[0] || ''; // The main image
-  productData.gallery = imageUrls; // The full gallery
+
+  productData.variants = [mainVariant];
+
+  if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+    productData.variants = [mainVariant, ...product.variants];
+  }
 
   console.log('Adding product to Firestore:', productData);
 
@@ -54,17 +82,62 @@ export async function addProduct(product) {
 }
 
 export async function updateProduct(id, updates) {
+  let mainVariant = null;
+  let cleanUpdates = { ...updates };
+
+  if (updates.regularPrice !== undefined || updates.salePrice !== undefined || 
+      updates.stockQuantity !== undefined || updates.unit !== undefined || 
+      updates.volume !== undefined || updates.weight !== undefined || 
+      updates.status !== undefined) {
+    
+    mainVariant = {
+      regularPrice: updates.regularPrice || 0,
+      salePrice: updates.salePrice || 0,
+      stockQuantity: updates.stockQuantity || 0,
+      unit: updates.unit || '',
+      volume: updates.weight || updates.volume || '',
+      status: updates.status || 'in_stock'
+    };
+
+    // Build cleanUpdates object excluding variant-related fields
+    const { 
+      images, 
+      image,
+      regularPrice, 
+      salePrice, 
+      stockQuantity, 
+      unit, 
+      weight, 
+      volume, 
+      status,
+      variants,
+      ...otherUpdates 
+    } = updates;
+
+    cleanUpdates = otherUpdates;
+  }
+
   const productData = { 
-    ...updates,
-    updatedAt: new Date().toISOString()
+    ...cleanUpdates,
+    updatedAt: Date.now() // Use timestamp as long number
   };
 
   // Only process and update image fields if new images are actually passed in.
   if (updates.images && Array.isArray(updates.images)) {
     const imageUrls = await uploadProductImages(updates.images);
-    delete productData.images; // Not a Firestore-compatible field
-    productData.image = imageUrls[0] || ''; // The main image
     productData.gallery = imageUrls; // The full gallery
+  }
+
+  // Add variants to productData if mainVariant was created
+  if (mainVariant) {
+    // Initialize variants array with main product data as first variant
+    productData.variants = [mainVariant];
+
+    // If there are additional variants in the updates, add them to the array
+    if (updates.variants && Array.isArray(updates.variants) && updates.variants.length > 0) {
+      // Add any additional variants (excluding the first one which is the main product data)
+      productData.variants = [mainVariant, ...updates.variants];
+    }
   }
 
   // console.log('Updating product in Firestore:', { id, productData });

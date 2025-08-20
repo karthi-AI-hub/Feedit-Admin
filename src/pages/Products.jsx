@@ -93,7 +93,7 @@ export default function Products() {
     
     const categoryMatch = activeTab === 'ALL' || (product.category && product.category?.toLowerCase() === activeTab.toLowerCase());
     const animalMatch = activeAnimal === 'ALL' || (product.animal && product.animal?.toLowerCase() === activeAnimal.toLowerCase());
-    const statusMatch = statusFilter === 'All' || product.status === statusFilter;
+    const statusMatch = statusFilter === 'All' || product.variants?.[0]?.status === statusFilter;
     
     // console.log('Match results:', { categoryMatch, animalMatch, statusMatch });
     
@@ -131,12 +131,23 @@ export default function Products() {
 
   const handleStatusChange = async (product, newStatus) => {
     try {
+      // Update the variant status instead of product status
       await updateProduct(product.id, { status: newStatus });
       const updatedProducts = products.map(p => 
-        p.id === product.id ? { ...p, status: newStatus } : p
+        p.id === product.id ? { 
+          ...p, 
+          variants: p.variants?.map((variant, index) => 
+            index === 0 ? { ...variant, status: newStatus } : variant
+          ) || []
+        } : p
       );
       setProducts(updatedProducts);
-      setSelectedProduct(prev => ({ ...prev, status: newStatus }));
+      setSelectedProduct(prev => ({ 
+        ...prev, 
+        variants: prev.variants?.map((variant, index) => 
+          index === 0 ? { ...variant, status: newStatus } : variant
+        ) || []
+      }));
     } catch (error) {
       console.error("Failed to update status:", error);
     }
@@ -302,10 +313,10 @@ export default function Products() {
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                {product.status === 'out_of_stock' && (
+                {product.variants?.[0]?.status === 'out_of_stock' && (
                   <Badge className="absolute top-4 left-4 bg-red-100 text-red-700 border border-red-300">Out of Stock</Badge>
                 )}
-                 {product.status === 'in_stock' && (
+                 {product.variants?.[0]?.status === 'in_stock' && (
                   <Badge className="absolute top-4 left-4 bg-green-100 text-green-700 border border-green-300">In Stock</Badge>
                 )}
               </div>
@@ -316,9 +327,9 @@ export default function Products() {
                     <Badge variant="secondary" className="mt-1">{product.category}</Badge>
                   </div>
                   <div className="text-right flex flex-col items-end">
-                    <p className="font-bold text-lg text-green-700">{`₹${product.salePrice || product.regularPrice}`}</p>
-                    {product.salePrice && (
-                      <p className="text-sm text-gray-500 line-through">{`₹${product.regularPrice}`}</p>
+                    <p className="font-bold text-lg text-green-700">{`₹${product.variants?.[0]?.salePrice || product.variants?.[0]?.regularPrice || 0}`}</p>
+                    {product.variants?.[0]?.salePrice && (
+                      <p className="text-sm text-gray-500 line-through">{`₹${product.variants?.[0]?.regularPrice}`}</p>
                     )}
                   </div>
                 </div>
@@ -332,17 +343,17 @@ export default function Products() {
                   <div className="space-y-2 pt-2 border-t">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Stock Quantity</span>
-                      <span className="font-medium">{product.stockQuantity || 0}</span>
+                      <span className="font-medium">{product.variants?.[0]?.stockQuantity || 0}</span>
                     </div>
-                    {(product.weight) && (
+                    {(product.variants?.[0]?.volume) && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">
                           {product.category === "Feed" ? "Weight" : "Volume"}
                         </span>
                         <span className="font-medium">
-                          {product.unit ? 
-                            `${product.weight} ${product.unit}` :
-                            `${product.weight}`}
+                          {product.variants?.[0]?.unit ? 
+                            `${product.variants?.[0]?.volume} ${product.variants?.[0]?.unit}` :
+                            `${product.variants?.[0]?.volume}`}
                         </span>
                       </div>
                     )}
@@ -450,24 +461,24 @@ export default function Products() {
                     <p className="text-gray-600">{selectedProduct.description}</p>
                   </div>
                   <div className="flex items-center gap-4">
-                    <p className="text-2xl font-bold text-green-700">{`₹${selectedProduct.salePrice || selectedProduct.regularPrice}`}</p>
-                    {selectedProduct.salePrice && (
-                      <p className="text-lg text-gray-500 line-through">{`₹${selectedProduct.regularPrice}`}</p>
+                    <p className="text-2xl font-bold text-green-700">{`₹${selectedProduct.variants?.[0]?.salePrice || selectedProduct.variants?.[0]?.regularPrice || 0}`}</p>
+                    {selectedProduct.variants?.[0]?.salePrice && (
+                      <p className="text-lg text-gray-500 line-through">{`₹${selectedProduct.variants?.[0]?.regularPrice}`}</p>
                     )}
                   </div>
                   <div className="border-t pt-4 space-y-2">
                     <div className="flex justify-between"><strong>Brand:</strong> <span>{selectedProduct.brand}</span></div>
                     <div className="flex justify-between"><strong>SKU:</strong> <span>{selectedProduct.sku}</span></div>
-                    <div className="flex justify-between"><strong>Stock:</strong> <span>{selectedProduct.stockQuantity}</span></div>
+                    <div className="flex justify-between"><strong>Stock:</strong> <span>{selectedProduct.variants?.[0]?.stockQuantity || 0}</span></div>
                     <div className="flex justify-between">
                       <strong>
                         {selectedProduct.category === "Feed" ? "Weight:" : "Volume:"}
                       </strong> 
                       <span>
-                        {selectedProduct.weight ? 
-                          selectedProduct.unit ? 
-                            `${selectedProduct.weight} ${selectedProduct.unit}` :
-                            `${selectedProduct.weight}` :
+                        {selectedProduct.variants?.[0]?.volume ? 
+                          selectedProduct.variants?.[0]?.unit ? 
+                            `${selectedProduct.variants?.[0]?.volume} ${selectedProduct.variants?.[0]?.unit}` :
+                            `${selectedProduct.variants?.[0]?.volume}` :
                           "-"}
                       </span>
                     </div>
@@ -480,11 +491,11 @@ export default function Products() {
                   </div>
                   <div className="border-t pt-4 flex items-center justify-between">
                     <Label htmlFor="stock-status" className="font-semibold text-gray-800">
-                      Status: {selectedProduct.status === 'in_stock' ? 'In Stock' : 'Out of Stock'}
+                      Status: {selectedProduct.variants?.[0]?.status === 'in_stock' ? 'In Stock' : 'Out of Stock'}
                     </Label>
                     <Switch
                       id="stock-status"
-                      checked={selectedProduct.status === 'in_stock'}
+                      checked={selectedProduct.variants?.[0]?.status === 'in_stock'}
                       onCheckedChange={(isChecked) => {
                         const newStatus = isChecked ? 'in_stock' : 'out_of_stock';
                         handleStatusChange(selectedProduct, newStatus);

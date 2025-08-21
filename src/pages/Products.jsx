@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, FilePenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,6 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-// Mock data for animal icons, replace with actual icons if available
 const animalIcons = {
   Cow: "🐄",
   Goat: "🐐",
@@ -41,14 +40,14 @@ const animalIcons = {
 export default function Products() {
   const [activeTab, setActiveTab] = useState("ALL");
   const [activeAnimal, setActiveAnimal] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState("All"); // "All", "in_stock", "out_of_stock"
+  const [statusFilter, setStatusFilter] = useState("All");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(8); // 8 products per page
+  const [itemsPerPage] = useState(8);
   const navigate = useNavigate();
 
   const fetchProducts = async () => {
@@ -71,6 +70,11 @@ export default function Products() {
     fetchProducts();
   }, []);
 
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, activeAnimal, statusFilter]);
+
   // Debug useEffect to log state changes
   useEffect(() => {
     // console.log('Products state updated:', products);
@@ -80,58 +84,43 @@ export default function Products() {
     // console.log('Filters changed:', { activeTab, activeAnimal, statusFilter });
   }, [activeTab, activeAnimal, statusFilter]);
 
-  // Filter products by tab, animal, and status
-  const filteredProducts = products.filter(product => {
-    // console.log('Filtering product:', product.name, {
-    //   category: product.category,
-    //   animal: product.animal,
-    //   status: product.status,
-    //   activeTab,
-    //   activeAnimal,
-    //   statusFilter
-    // });
-    
-    const categoryMatch = activeTab === 'ALL' || (product.category && product.category?.toLowerCase() === activeTab.toLowerCase());
-    const animalMatch = activeAnimal === 'ALL' || (product.animal && product.animal?.toLowerCase() === activeAnimal.toLowerCase());
-    const statusMatch = statusFilter === 'All' || product.variants?.[0]?.status === statusFilter;
-    
-    // console.log('Match results:', { categoryMatch, animalMatch, statusMatch });
-    
-    return categoryMatch && animalMatch && statusMatch;
-  });
+  // Filter products by tab, animal, and status (memoized)
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      const categoryMatch = activeTab === 'ALL' || (product.category && product.category?.toLowerCase() === activeTab.toLowerCase());
+      const animalMatch = activeAnimal === 'ALL' || (product.animal && product.animal?.toLowerCase() === activeAnimal.toLowerCase());
+      const statusMatch = statusFilter === 'All' || product.variants?.[0]?.status === statusFilter;
+      return categoryMatch && animalMatch && statusMatch;
+    });
+  }, [products, activeTab, activeAnimal, statusFilter]);
 
-  // console.log('Total products:', products.length);
-
-  // console.log('Filtered products:', filteredProducts.length);
-  // console.log('Current filters:', { activeTab, activeAnimal, statusFilter });
-
-  // Pagination logic
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  // Pagination logic (memoized)
+  const totalPages = useMemo(() => Math.ceil(filteredProducts.length / itemsPerPage), [filteredProducts.length, itemsPerPage]);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = useMemo(() => filteredProducts.slice(indexOfFirstItem, indexOfLastItem), [filteredProducts, indexOfFirstItem, indexOfLastItem]);
 
-  const handlePageChange = (pageNumber) => {
+  // Handlers memoized
+  const handlePageChange = useCallback((pageNumber) => {
     setCurrentPage(pageNumber);
-  };
+  }, []);
 
-  const handleAddNewProduct = () => {
+  const handleAddNewProduct = useCallback(() => {
     navigate('/products/new');
-  };
+  }, [navigate]);
 
-  const handleOpenEditProduct = (product) => {
+  const handleOpenEditProduct = useCallback((product) => {
     setIsDetailViewOpen(false); // Close the dialog first
     navigate(`/products/edit/${product.id}`);
-  };
+  }, [navigate]);
 
-  const handleViewProduct = (product) => {
+  const handleViewProduct = useCallback((product) => {
     setSelectedProduct(product);
     setIsDetailViewOpen(true);
-  };
+  }, []);
 
-  const handleStatusChange = async (product, newStatus) => {
+  const handleStatusChange = useCallback(async (product, newStatus) => {
     try {
-      // Update the variant status instead of product status
       await updateProduct(product.id, { status: newStatus });
       const updatedProducts = products.map(p => 
         p.id === product.id ? { 
@@ -142,19 +131,118 @@ export default function Products() {
         } : p
       );
       setProducts(updatedProducts);
-      setSelectedProduct(prev => ({ 
+      setSelectedProduct(prev => prev ? ({ 
         ...prev, 
         variants: prev.variants?.map((variant, index) => 
           index === 0 ? { ...variant, status: newStatus } : variant
         ) || []
-      }));
+      }) : null);
     } catch (error) {
       console.error("Failed to update status:", error);
     }
-  };
+  }, [products]);
 
   const productTabs = ["ALL", "Feed", "Supplement"];
   const animalCategories = ["ALL", "Cow", "Goat", "Chicken"];
+
+  // Memoized ProductCard component (minimized complexity, optimized image, no inline functions)
+  const ProductCard = React.memo(function ProductCard({ product, onView, onEdit }) {
+    // Handlers outside JSX
+    const handleCardClick = useCallback(() => onView(product), [onView, product]);
+    const handleEditClick = useCallback((e) => {
+      e.stopPropagation();
+      onEdit(product);
+    }, [onEdit, product]);
+    const handleImgError = useCallback((e) => {
+      e.target.src = '/placeholder.png';
+    }, []);
+    return (
+      <Card 
+        key={product.id} 
+        className="overflow-hidden bg-white border border-gray-100 rounded-xl shadow hover:shadow-md transition-transform duration-100 flex flex-col cursor-pointer"
+        onClick={handleCardClick}
+      >
+        <div className="relative flex flex-col items-center p-3 pb-0">
+          <img 
+            src={product.image || product.gallery?.[0] || '/placeholder.png'} 
+            alt={product.name || 'Product'}
+            className="w-full h-40 object-cover mx-auto rounded border"
+            loading="lazy"
+            width={320}
+            height={160}
+            decoding="async"
+            onError={handleImgError}
+          />
+          <TooltipProvider delayDuration={200} skipDelayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white z-10"
+                  onClick={handleEditClick}
+                  tabIndex={0}
+                  aria-label="Edit Product"
+                >
+                  <FilePenLine className="h-4 w-4" />
+                  <span className="sr-only">Edit Product</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit Product</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          {product.variants?.[0]?.status === 'out_of_stock' && (
+            <Badge className="absolute top-4 left-4 bg-red-100 text-red-700 border border-red-300">Out of Stock</Badge>
+          )}
+          {product.variants?.[0]?.status === 'in_stock' && (
+            <Badge className="absolute top-4 left-4 bg-green-100 text-green-700 border border-green-300">In Stock</Badge>
+          )}
+        </div>
+        <CardContent className="p-3 flex-1 flex flex-col">
+          <div className="flex items-start justify-between mb-2">
+            <div>
+              <h3 className="font-semibold text-base mb-1 truncate" title={product.name}>{product.name}</h3>
+              <Badge variant="secondary" className="mt-1">{product.category}</Badge>
+            </div>
+            <div className="text-right flex flex-col items-end">
+              <p className="font-bold text-base text-green-700">{`₹${product.variants?.[0]?.salePrice || product.variants?.[0]?.regularPrice || 0}`}</p>
+              {product.variants?.[0]?.salePrice && (
+                <p className="text-xs text-gray-500 line-through">{`₹${product.variants?.[0]?.regularPrice}`}</p>
+              )}
+            </div>
+          </div>
+          <div className="space-y-2 mt-2 flex-1">
+            <div>
+              <h4 className="font-medium text-xs mb-1">Description</h4>
+              <p className="text-xs text-muted-foreground line-clamp-2">
+                {product.description}
+              </p>
+            </div>
+            <div className="space-y-1 pt-1 border-t">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Stock</span>
+                <span className="font-medium">{product.variants?.[0]?.stockQuantity || 0}</span>
+              </div>
+              {(product.variants?.[0]?.volume) && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">
+                    {product.category === "Feed" ? "Weight" : "Volume"}
+                  </span>
+                  <span className="font-medium">
+                    {product.variants?.[0]?.unit ? 
+                      `${product.variants?.[0]?.volume} ${product.variants?.[0]?.unit}` :
+                      `${product.variants?.[0]?.volume}`}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  });
 
   return (
     <div className="min-h-screen">
@@ -278,89 +366,12 @@ export default function Products() {
           <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {currentItems.length > 0 ? (
           currentItems.map((product) => (
-            <Card 
-              key={product.id} 
-              className="overflow-hidden bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-lg transition-transform duration-200 hover:-translate-y-1 flex flex-col cursor-pointer"
-              onClick={() => handleViewProduct(product)}
-            >
-              <div className="relative flex flex-col items-center p-4 pb-0">
-                <img 
-                  src={product.image || product.gallery?.[0] || '/placeholder.svg'} 
-                  alt={product.name}
-                  className="w-full h-48 object-cover mx-auto rounded-xl border"
-                  onError={(e) => {
-                    e.target.src = '/placeholder.svg';
-                  }}
-                />
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white z-10"
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent card's onClick from firing
-                          handleOpenEditProduct(product);
-                        }}
-                      >
-                        <FilePenLine className="h-4 w-4" />
-                        <span className="sr-only">Edit Product</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Edit Product</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                {product.variants?.[0]?.status === 'out_of_stock' && (
-                  <Badge className="absolute top-4 left-4 bg-red-100 text-red-700 border border-red-300">Out of Stock</Badge>
-                )}
-                 {product.variants?.[0]?.status === 'in_stock' && (
-                  <Badge className="absolute top-4 left-4 bg-green-100 text-green-700 border border-green-300">In Stock</Badge>
-                )}
-              </div>
-              <CardContent className="p-4 flex-1 flex flex-col">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <h3 className="font-semibold text-lg mb-1 truncate" title={product.name}>{product.name}</h3>
-                    <Badge variant="secondary" className="mt-1">{product.category}</Badge>
-                  </div>
-                  <div className="text-right flex flex-col items-end">
-                    <p className="font-bold text-lg text-green-700">{`₹${product.variants?.[0]?.salePrice || product.variants?.[0]?.regularPrice || 0}`}</p>
-                    {product.variants?.[0]?.salePrice && (
-                      <p className="text-sm text-gray-500 line-through">{`₹${product.variants?.[0]?.regularPrice}`}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-3 mt-4 flex-1">
-                  <div>
-                    <h4 className="font-medium text-sm mb-2">Description</h4>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {product.description}
-                    </p>
-                  </div>
-                  <div className="space-y-2 pt-2 border-t">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Stock Quantity</span>
-                      <span className="font-medium">{product.variants?.[0]?.stockQuantity || 0}</span>
-                    </div>
-                    {(product.variants?.[0]?.volume) && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          {product.category === "Feed" ? "Weight" : "Volume"}
-                        </span>
-                        <span className="font-medium">
-                          {product.variants?.[0]?.unit ? 
-                            `${product.variants?.[0]?.volume} ${product.variants?.[0]?.unit}` :
-                            `${product.variants?.[0]?.volume}`}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <ProductCard
+              key={product.id}
+              product={product}
+              onView={handleViewProduct}
+              onEdit={handleOpenEditProduct}
+            />
           ))
         ) : (
           <div className="col-span-full text-center py-10">
@@ -442,7 +453,7 @@ export default function Products() {
                           <div className="p-1">
                             <Card>
                               <CardContent className="flex aspect-square items-center justify-center p-0">
-                                <img src={image} alt={`Product image ${index + 1}`} className="w-full h-full object-cover rounded-lg" />
+                                <img src={image} alt={`Product image ${index + 1}`} className="w-full h-full object-cover rounded-lg" loading="lazy" />
                               </CardContent>
                             </Card>
                           </div>
@@ -468,7 +479,7 @@ export default function Products() {
                   </div>
                   <div className="border-t pt-4 space-y-2">
                     <div className="flex justify-between"><strong>Brand:</strong> <span>{selectedProduct.brand}</span></div>
-                    <div className="flex justify-between"><strong>SKU:</strong> <span>{selectedProduct.sku}</span></div>
+                    <div className="flex justify-between"><strong>SKU:</strong> <span>{selectedProduct.variants?.[0]?.sku || '-'}</span></div>
                     <div className="flex justify-between"><strong>Stock:</strong> <span>{selectedProduct.variants?.[0]?.stockQuantity || 0}</span></div>
                     <div className="flex justify-between">
                       <strong>

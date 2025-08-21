@@ -159,7 +159,7 @@ export default function Customers() {
                       />
                     </td>
                     <td className="px-2 sm:px-3 py-2 flex items-center gap-2 max-w-[140px] truncate">
-                      <img src={c.avatar || '/placeholder.svg'} alt={c.name} className="w-7 h-7 rounded-full object-cover border flex-shrink-0" />
+                      <img src={c.avatar || '/placeholder.png'} alt={c.name} className="w-7 h-7 rounded-full object-cover border flex-shrink-0" />
                       <span className="truncate">{c.name}</span>
                     </td>
                     <td className="px-2 sm:px-3 py-2 whitespace-nowrap">{c.number}</td>

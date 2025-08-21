@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Upload, Trash2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +30,9 @@ export default function ProductForm({
   // Initial form state
   const emptyProductForm = {
     name: "",
+    nameTamil: "",
     description: "",
+    descriptionTamil: "",
     category: "Feed",
     brand: "",
     sku: "",
@@ -43,7 +45,6 @@ export default function ProductForm({
     animal: "Cow",
     weight: "",
     unit: "KG",
-    unit: "",
   };
 
   const [productForm, setProductForm] = useState(emptyProductForm);
@@ -54,34 +55,57 @@ export default function ProductForm({
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
 
-  // Variants state for Supplement products
+  const errorRef = useRef(null);
+
+  const setErrorAndScroll = (errorMessage) => {
+    setError(errorMessage);
+    setTimeout(() => {
+      if (errorRef.current) {
+        errorRef.current.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }
+    }, 100);
+  };
+
   const [variants, setVariants] = useState([]);
   const [newVariant, setNewVariant] = useState({
     volume: "",
     unit: "ML",
+    sku: "",
     regularPrice: "",
     salePrice: "",
     stockQuantity: "",
   });
 
-  // Initialize form with data when editing
   useEffect(() => {
     if (mode === "edit" && initialData) {
+      // For Feed, prefill fields from the first variant if available
+      let feedFields = {};
+      if ((initialData.category || "Feed") === "Feed" && Array.isArray(initialData.variants) && initialData.variants.length > 0) {
+        const v = initialData.variants[0];
+        feedFields = {
+          sku: v.sku || "",
+          stockQuantity: v.stockQuantity || "",
+          regularPrice: v.regularPrice || "",
+          salePrice: v.salePrice || "",
+          weight: v.volume || "",
+          unit: v.unit || "",
+          status: v.status || initialData.status || "in_stock",
+        };
+      }
       setProductForm({
         name: initialData.name || "",
+        nameTamil: initialData.nameTamil || "",
         description: initialData.description || "",
+        descriptionTamil: initialData.descriptionTamil || "",
         category: initialData.category || "",
         brand: initialData.brand || "",
-        sku: initialData.sku || "",
-        stockQuantity: initialData.stockQuantity || "",
-        regularPrice: initialData.regularPrice || "",
-        salePrice: initialData.salePrice || "",
-        status: initialData.status || "in_stock",
+        ...feedFields,
         image: initialData.image || "",
-        tags: initialData.tags || [],
+        tags: initialData.tags || "",
         animal: initialData.animal || "",
-        weight: initialData.weight || "",
-        unit: initialData.unit || "",
       });
       setCurrentTags(initialData.tags || []);
       if (initialData.gallery && Array.isArray(initialData.gallery)) {
@@ -89,15 +113,13 @@ export default function ProductForm({
       } else {
         setProductImages([]);
       }
-      // Load variants if they exist
       if (initialData.variants && Array.isArray(initialData.variants)) {
         setVariants(initialData.variants);
       } else {
         setVariants([]);
       }
     } else {
-      // Reset form for add mode
-      setProductForm(emptyProductForm);
+  setProductForm(emptyProductForm);
       setProductImages([]);
       setCurrentTags([]);
       setVariants([]);
@@ -154,35 +176,33 @@ export default function ProductForm({
     });
   };
 
-  // Variant handlers
   const addVariant = () => {
-    if (
-      newVariant.volume &&
-      newVariant.regularPrice &&
-      newVariant.stockQuantity
-    ) {
-      // Validate sale price if provided
-      if (
-        newVariant.salePrice &&
-        parseFloat(newVariant.salePrice) >= parseFloat(newVariant.regularPrice)
-      ) {
-        setError("Sale price must be less than regular price for variants");
+    const isValid = (
+      newVariant.volume && String(newVariant.volume).trim() !== "" && Number(newVariant.volume) > 0 &&
+      newVariant.unit && String(newVariant.unit).trim() !== "" &&
+      newVariant.sku && String(newVariant.sku).trim() !== "" &&
+      newVariant.regularPrice && String(newVariant.regularPrice).trim() !== "" && Number(newVariant.regularPrice) > 0 &&
+      newVariant.salePrice && String(newVariant.salePrice).trim() !== "" && Number(newVariant.salePrice) > 0 &&
+      newVariant.stockQuantity && String(newVariant.stockQuantity).trim() !== "" && Number(newVariant.stockQuantity) > 0
+    );
+
+    if (isValid) {
+      if (parseFloat(newVariant.salePrice) >= parseFloat(newVariant.regularPrice)) {
+        setErrorAndScroll("Sale price must be less than regular price for variants");
         return;
       }
-
-      setVariants([...variants, { ...newVariant }]);
+      setVariants(prev => [...prev, { ...newVariant }]);
       setNewVariant({
         volume: "",
         unit: "ML",
+        sku: "",
         regularPrice: "",
         salePrice: "",
         stockQuantity: "",
       });
       setError("");
     } else {
-      setError(
-        "Please fill in volume, regular price, and stock quantity for the variant"
-      );
+      setErrorAndScroll("Please fill in all fields for the variant (volume, unit, SKU, regular price, sale price, and stock quantity). All numbers must be greater than zero.");
     }
   };
 
@@ -203,7 +223,7 @@ export default function ProductForm({
       (file) => !allowedTypes.includes(file.type)
     );
     if (invalidFiles.length > 0) {
-      setError("Only image files (jpeg, png, gif, webp) are allowed.");
+      setErrorAndScroll("Only image files (jpeg, png, gif, webp) are allowed.");
       return;
     }
     if (files.length > 0) {
@@ -230,102 +250,110 @@ export default function ProductForm({
 
     // Comprehensive validation before Firebase processing
     if (!productForm.name || productForm.name.trim() === "") {
-      setError("Product name is required");
+      setErrorAndScroll("Product name is required");
       return;
     }
 
     if (!productForm.description || productForm.description.trim() === "") {
-      setError("Product description is required");
+      setErrorAndScroll("Product description is required");
       return;
     }
 
     if (!productForm.category || productForm.category.trim() === "") {
-      setError("Product category is required");
+      setErrorAndScroll("Product category is required");
       return;
     }
 
     if (!productForm.animal || productForm.animal.trim() === "") {
-      setError("Animal selection is required");
+      setErrorAndScroll("Animal selection is required");
       return;
     }
 
     if (!productForm.brand || productForm.brand.trim() === "") {
-      setError("Brand is required");
+      setErrorAndScroll("Brand is required");
       return;
     }
 
-    if (!productForm.sku || productForm.sku.trim() === "") {
-      setError("SKU is required");
-      return;
+    // Only validate these fields for Feed products (Supplement uses variants)
+    if (productForm.category === "Feed") {
+      if (!productForm.sku || productForm.sku.trim() === "") {
+        setErrorAndScroll("SKU is required");
+        return;
+      }
+
+      if (!productForm.stockQuantity || String(productForm.stockQuantity).trim() === "") {
+        setErrorAndScroll("Stock quantity is required");
+        return;
+      }
+
+      if (
+        isNaN(productForm.stockQuantity) ||
+        parseInt(productForm.stockQuantity) < 0
+      ) {
+        setErrorAndScroll("Stock quantity must be a valid positive number");
+        return;
+      }
+
+      if (!productForm.weight || String(productForm.weight).trim() === "") {
+        setErrorAndScroll("Weight is required");
+        return;
+      }
+
+      if (isNaN(productForm.weight) || parseFloat(productForm.weight) <= 0) {
+        setErrorAndScroll("Weight must be a valid positive number");
+        return;
+      }
+
+      if (!productForm.unit || productForm.unit.trim() === "") {
+        setErrorAndScroll("Unit selection is required");
+        return;
+      }
+
+      if (!productForm.regularPrice || String(productForm.regularPrice).trim() === "") {
+        setErrorAndScroll("Regular price is required");
+        return;
+      }
+
+      if (
+        isNaN(productForm.regularPrice) ||
+        parseFloat(productForm.regularPrice) <= 0
+      ) {
+        setErrorAndScroll("Regular price must be a valid positive number");
+        return;
+      }
+
+      if (!productForm.salePrice || String(productForm.salePrice).trim() === "") {
+        setErrorAndScroll("Sale price is required");
+        return;
+      }
+
+      if (
+        isNaN(productForm.salePrice) ||
+        parseFloat(productForm.salePrice) <= 0
+      ) {
+        setErrorAndScroll("Sale price must be a valid positive number");
+        return;
+      }
+
+      // Validation - Check if regular price is greater than sale price
+      const regularPrice = parseFloat(productForm.regularPrice);
+      const salePrice = parseFloat(productForm.salePrice);
+      if (regularPrice <= salePrice) {
+        setErrorAndScroll("Regular price must be greater than sale price");
+        return;
+      }
     }
 
-    if (!productForm.stockQuantity || productForm.stockQuantity.trim() === "") {
-      setError("Stock quantity is required");
-      return;
+    // Validation - For Supplement products, require at least one valid variant (no empty/null fields)
+    if (productForm.category === "Supplement") {
+      const validVariants = variants.filter(v =>
+        v && [v.volume, v.unit, v.sku, v.regularPrice, v.salePrice, v.stockQuantity].every(val => val !== null && val !== undefined && String(val).trim() !== "")
+      );
+      if (validVariants.length === 0) {
+        setErrorAndScroll("At least one complete variant is required for Supplement products");
+        return;
+      }
     }
-
-    if (
-      isNaN(productForm.stockQuantity) ||
-      parseInt(productForm.stockQuantity) < 0
-    ) {
-      setError("Stock quantity must be a valid positive number");
-      return;
-    }
-
-    if (!productForm.weight || productForm.weight.trim() === "") {
-      setError("Weight/Volume is required");
-      return;
-    }
-
-    if (isNaN(productForm.weight) || parseFloat(productForm.weight) <= 0) {
-      setError("Weight/Volume must be a valid positive number");
-      return;
-    }
-
-    if (!productForm.unit || productForm.unit.trim() === "") {
-      setError("Unit selection is required");
-      return;
-    }
-
-    if (!productForm.regularPrice || productForm.regularPrice.trim() === "") {
-      setError("Regular price is required");
-      return;
-    }
-
-    if (
-      isNaN(productForm.regularPrice) ||
-      parseFloat(productForm.regularPrice) <= 0
-    ) {
-      setError("Regular price must be a valid positive number");
-      return;
-    }
-
-    if (!productForm.salePrice || productForm.salePrice.trim() === "") {
-      setError("Sale price is required");
-      return;
-    }
-
-    if (
-      isNaN(productForm.salePrice) ||
-      parseFloat(productForm.salePrice) <= 0
-    ) {
-      setError("Sale price must be a valid positive number");
-      return;
-    }
-
-    // Validation - Check if regular price is greater than sale price
-    const regularPrice = parseFloat(productForm.regularPrice);
-    const salePrice = parseFloat(productForm.salePrice);
-    if (regularPrice <= salePrice) {
-      setError("Regular price must be greater than sale price");
-      return;
-    }
-
-    // Validation - For Supplement products, require at least one variant
-    // if (productForm.category === "Supplement" && variants.length === 0) {
-    //   setError("At least one variant is required for Supplement products");
-    //   return;
-    // }
 
     // if (productImages.length === 0) {
     //   setError("At least one product image is required");
@@ -340,12 +368,22 @@ export default function ProductForm({
     setIsLoading(true);
     setError("");
 
+    let filteredVariants = variants;
+    if (productForm.category === "Supplement") {
+      filteredVariants = variants.filter(v =>
+        v &&
+        v.volume && String(v.volume).trim() !== "" && Number(v.volume) > 0 &&
+        v.unit && String(v.unit).trim() !== "" &&
+        v.sku && String(v.sku).trim() !== "" &&
+        v.regularPrice && String(v.regularPrice).trim() !== "" && Number(v.regularPrice) > 0 &&
+        v.salePrice && String(v.salePrice).trim() !== "" && Number(v.salePrice) > 0 &&
+        v.stockQuantity && String(v.stockQuantity).trim() !== "" && Number(v.stockQuantity) > 0
+      );
+    }
     const formData = {
       ...productForm,
       images: productImages.map((img) => img.file || img.preview),
-      // Add variants for Supplement products
-      ...(productForm.category === "Supplement" &&
-        variants.length > 0 && { variants: variants }),
+      ...(productForm.category === "Supplement" && filteredVariants.length > 0 && { variants: filteredVariants }),
     };
 
     try {
@@ -356,7 +394,7 @@ export default function ProductForm({
         console.log("Product added successfully:", result);
       } else {
         result = await updateProduct(initialData.id, formData);
-        console.log("Product updated successfully:", result);
+        console.log("Product updated successfully:", formData);
       }
 
       // Success callback
@@ -384,7 +422,7 @@ export default function ProductForm({
         errorMessage += "Please try again.";
       }
 
-      setError(errorMessage);
+      setErrorAndScroll(errorMessage);
 
       // Optional: Show browser alert for critical errors
       if (error.code === "permission-denied") {
@@ -435,7 +473,7 @@ export default function ProductForm({
         errorMessage += "Please try again.";
       }
 
-      setError(errorMessage);
+      setErrorAndScroll(errorMessage);
 
       // Show alert for critical errors
       if (error.code === "permission-denied") {
@@ -452,7 +490,10 @@ export default function ProductForm({
     <form onSubmit={handleSave}>
       {/* Enhanced error display */}
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 rounded-lg">
+        <div 
+          ref={errorRef}
+          className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 rounded-lg"
+        >
           <div className="flex">
             <div className="flex-shrink-0">
               <X className="h-5 w-5 text-red-400" />
@@ -492,6 +533,17 @@ export default function ProductForm({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="nameTamil">Product Name (Tamil)</Label>
+            <Input
+              id="nameTamil"
+              name="nameTamil"
+              value={productForm.nameTamil}
+              onChange={handleInputChange}
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="description">Description *</Label>
             <Textarea
               id="description"
@@ -501,6 +553,18 @@ export default function ProductForm({
               className="min-h-[100px]"
               disabled={isLoading}
               required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="descriptionTamil">Description (Tamil)</Label>
+            <Textarea
+              id="descriptionTamil"
+              name="descriptionTamil"
+              value={productForm.descriptionTamil}
+              onChange={handleInputChange}
+              className="min-h-[100px]"
+              disabled={isLoading}
             />
           </div>
 
@@ -553,108 +617,96 @@ export default function ProductForm({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="sku">SKU *</Label>
-              <Input
-                id="sku"
-                name="sku"
-                value={productForm.sku}
-                onChange={handleInputChange}
-                disabled={isLoading}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="stockQuantity">Stock Quantity *</Label>
-              <Input
-                id="stockQuantity"
-                name="stockQuantity"
-                type="number"
-                value={productForm.stockQuantity}
-                onChange={handleInputChange}
-                disabled={isLoading}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="weight">
-                {productForm.category === "Feed"
-                  ? "Weight"
-                  : productForm.category === "Supplement"
-                  ? "Volume"
-                  : "Volume"}
-              </Label>
-              <Input
-                id="weight"
-                name="weight"
-                type="number"
-                step="0.1"
-                value={productForm.weight}
-                onChange={handleInputChange}
-                disabled={isLoading}
-              />
-            </div>
-            {(productForm.category === "Feed" ||
-              productForm.category === "Supplement") && (
-              <div className="space-y-2">
-                <Label htmlFor="unit">Unit</Label>
-                <Select
-                  value={productForm.unit}
-                  onValueChange={(value) => handleSelectChange("unit", value)}
-                  disabled={isLoading}
-                >
-                  <SelectTrigger id="unit">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {productForm.category === "Feed" && (
-                      <>
-                        <SelectItem value="KG">KG</SelectItem>
-                        <SelectItem value="Grams">Grams</SelectItem>
-                      </>
-                    )}
-                    {productForm.category === "Supplement" && (
-                      <>
-                        <SelectItem value="Litre">Litre</SelectItem>
-                        <SelectItem value="MilliLiter">MilliLiter</SelectItem>
-                        <SelectItem value="Grams">Grams</SelectItem>
-                        <SelectItem value="Bolus">Bolus</SelectItem>
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
+          {/* Only show these fields for Feed products, not Supplement */}
+          {productForm.category === "Feed" && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sku">SKU *</Label>
+                  <Input
+                    id="sku"
+                    name="sku"
+                    value={productForm.sku}
+                    onChange={handleInputChange}
+                    disabled={isLoading}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stockQuantity">Stock Quantity *</Label>
+                  <Input
+                    id="stockQuantity"
+                    name="stockQuantity"
+                    type="number"
+                    value={productForm.stockQuantity}
+                    onChange={handleInputChange}
+                    onWheel={(e) => e.target.blur()}
+                    disabled={isLoading}
+                    required
+                  />
+                </div>
               </div>
-            )}
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="regularPrice">Regular Price</Label>
-              <Input
-                id="regularPrice"
-                name="regularPrice"
-                type="text"
-                value={productForm.regularPrice}
-                onChange={handleInputChange}
-                disabled={isLoading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="salePrice">Sale Price</Label>
-              <Input
-                id="salePrice"
-                name="salePrice"
-                type="text"
-                value={productForm.salePrice}
-                onChange={handleInputChange}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="weight">Weight</Label>
+                  <Input
+                    id="weight"
+                    name="weight"
+                    type="number"
+                    step="0.1"
+                    value={productForm.weight}
+                    onChange={handleInputChange}
+                    onWheel={(e) => e.target.blur()}
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="unit">Unit</Label>
+                  <Select
+                    value={productForm.unit}
+                    onValueChange={(value) => handleSelectChange("unit", value)}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger id="unit">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="KG">KG</SelectItem>
+                      <SelectItem value="Grams">Grams</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="regularPrice">Regular Price</Label>
+                  <Input
+                    id="regularPrice"
+                    name="regularPrice"
+                    type="number"
+                    value={productForm.regularPrice}
+                    onChange={handleInputChange}
+                    onWheel={(e) => e.target.blur()}
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="salePrice">Sale Price</Label>
+                  <Input
+                    id="salePrice"
+                    name="salePrice"
+                    type="number"
+                    value={productForm.salePrice}
+                    onChange={handleInputChange}
+                    onWheel={(e) => e.target.blur()}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="tags">Tags</Label>
@@ -796,7 +848,7 @@ export default function ProductForm({
                         volume: e.target.value,
                       }))
                     }
-                    placeholder="500"
+                    onWheel={(e) => e.target.blur()}
                     disabled={isLoading}
                   />
                 </div>
@@ -824,40 +876,20 @@ export default function ProductForm({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="variantRegularPrice">Regular Price</Label>
+                  <Label htmlFor="variantSku">SKU</Label>
                   <Input
-                    id="variantRegularPrice"
-                    type="number"
-                    value={newVariant.regularPrice}
+                    id="variantSku"
+                    type="text"
+                    value={newVariant.sku}
                     onChange={(e) =>
                       setNewVariant((prev) => ({
                         ...prev,
-                        regularPrice: e.target.value,
+                        sku: e.target.value,
                       }))
                     }
-                    placeholder="150"
                     disabled={isLoading}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="variantSalePrice">Sale Price</Label>
-                  <Input
-                    id="variantSalePrice"
-                    type="number"
-                    value={newVariant.salePrice}
-                    onChange={(e) =>
-                      setNewVariant((prev) => ({
-                        ...prev,
-                        salePrice: e.target.value,
-                      }))
-                    }
-                    placeholder="130"
-                    disabled={isLoading}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="variantStock">Stock Quantity</Label>
                   <Input
@@ -870,21 +902,58 @@ export default function ProductForm({
                         stockQuantity: e.target.value,
                       }))
                     }
-                    placeholder="50"
+                    onWheel={(e) => e.target.blur()}
                     disabled={isLoading}
                   />
                 </div>
-                <div className="flex items-end">
-                  <Button
-                    type="button"
-                    onClick={addVariant}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="variantSalePrice">Sale Price</Label>
+                  <Input
+                    id="variantSalePrice"
+                    type="number"
+                    value={newVariant.salePrice}
+                    onChange={(e) =>
+                      setNewVariant((prev) => ({
+                        ...prev,
+                        salePrice: e.target.value,
+                      }))
+                    }
+                    onWheel={(e) => e.target.blur()}
                     disabled={isLoading}
-                    style={{ backgroundColor: "#007539" }}
-                    className="w-full"
-                  >
-                    Add Variant
-                  </Button>
+                  />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="variantRegularPrice">Regular Price</Label>
+                  <Input
+                    id="variantRegularPrice"
+                    type="number"
+                    value={newVariant.regularPrice}
+                    onChange={(e) =>
+                      setNewVariant((prev) => ({
+                        ...prev,
+                        regularPrice: e.target.value,
+                      }))
+                    }
+                    onWheel={(e) => e.target.blur()}
+                    disabled={isLoading}
+                  />
+                </div>                
+                
+              </div>
+
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  onClick={addVariant}
+                  disabled={isLoading}
+                  style={{ backgroundColor: "#007539" }}
+                  className="w-full"
+                >
+                  Add Variant
+                </Button>
               </div>
             </div>
 
@@ -907,6 +976,9 @@ export default function ProductForm({
                         >
                           {variant.volume} {variant.unit}
                         </Badge>
+                        <span className="text-gray-800 font-medium">
+                          SKU: {variant.sku}
+                        </span>
                         <span className="text-gray-600">
                           Regular: ₹{variant.regularPrice}
                         </span>

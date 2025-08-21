@@ -123,33 +123,39 @@ export const removeOrderStatusFromRealtimeDB = async (orderId) => {
 
 // Update order status in both Firestore and Realtime Database
 export const updateOrderStatusAPI = async (orderId, newStatus, number, additionalData = {}) => {
+  // Prepare Firestore updates
+  let firestoreUpdates = { 
+    orderStatus: newStatus,
+    ...additionalData 
+  };
+
+  const now = Date.now(); // Use milliseconds since epoch for consistency with Realtime DB
+
+  // Add appropriate timestamps based on status change
+  if (newStatus === 'CONFIRMED') {
+    firestoreUpdates.orderConfirmed = now;
+  } else if (newStatus === 'DELIVERED') {
+    firestoreUpdates.orderDelivered = now;
+  } else if (newStatus === 'CANCELLED') {
+    firestoreUpdates.orderCancelled = now;
+  }
+
+  // Always update Firestore first
   try {
-    // Prepare Firestore updates
-    let firestoreUpdates = { 
-      orderStatus: newStatus,
-      ...additionalData 
-    };
-    
-    const now = Date.now(); // Use milliseconds since epoch for consistency with Realtime DB
-    
-    // Add appropriate timestamps based on status change
-    if (newStatus === 'CONFIRMED') {
-      firestoreUpdates.orderConfirmed = now;
-    } else if (newStatus === 'DELIVERED') {
-      firestoreUpdates.orderDelivered = now;
-    } else if (newStatus === 'CANCELLED') {
-      firestoreUpdates.orderCancelled = now;
-    }
-    
-    // Update Firestore
     await updateOrderAPI(orderId, firestoreUpdates);
-    
-    // Update Realtime Database
-    await addOrderStatusUpdateToRealtimeDB(orderId, newStatus, number);
-    
-    return { success: true, data: firestoreUpdates };
   } catch (error) {
-    console.error('Failed to update order status in both databases:', error);
+    console.error('Failed to update order status in Firestore:', error);
     throw error;
   }
+
+  // Then update Realtime DB, but do not throw if it fails
+  try {
+    await addOrderStatusUpdateToRealtimeDB(orderId, newStatus, number);
+  } catch (error) {
+    console.error('Order status updated in Firestore, but failed in Realtime DB:', error);
+    // Optionally: return a warning or log for admin reconciliation
+    return { success: true, data: firestoreUpdates, warning: 'Realtime DB update failed' };
+  }
+
+  return { success: true, data: firestoreUpdates };
 };

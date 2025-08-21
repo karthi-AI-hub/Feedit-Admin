@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+
+// Define default categories array
+const categories = ["Feed", "Supplement"];
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import ProductForm from '@/components/ProductForm';
 import { getProductById } from '@/services/productsService';
-import { categories } from '@/data/products';
 
 export default function ProductPage() {
   const { id } = useParams();

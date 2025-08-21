@@ -1,3 +1,4 @@
+import '../pages/Login.css';
 import AuthLayout from '../layout/AuthLayout';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
@@ -6,7 +7,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
+  // const [keepLoggedIn, setKeepLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -64,7 +65,7 @@ export default function Login() {
             disabled={isLoading}
             required
           />
-          <div className="flex items-center justify-between w-full mb-2">
+          {/* <div className="flex items-center justify-between w-full mb-2">
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -75,7 +76,7 @@ export default function Login() {
               <label className="text-gray-700 text-sm">Keep me logged in</label>
             </div>
             <a href="#" className="login-forgot-link text-sm" onClick={e => { e.preventDefault(); navigate('/forgot-password'); }}>Forgot Password?</a>
-          </div>
+          </div> */}
           <button 
             type="submit" 
             className="login-btn-main w-full bg-green-700 hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed"

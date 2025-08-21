@@ -9,16 +9,17 @@ import SplashScreen from "./pages/SplashScreen";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
+import ProductPage from "./pages/ProductPage";
 import Orders from "./pages/Orders";
 import OrderDetails from "./pages/OrderDetails";
 import Customers from "./pages/Customers";
 import Banners from "./pages/Banners";
 import NotFound from "./pages/NotFound";
-import ForgotPassword from "./pages/ForgotPassword";
-import EmailSent from "./pages/EmailSent";
-import SetNewPassword from "./pages/SetNewPassword";
-import ProductPage from "./pages/ProductPage";
-import PasswordChanged from "./pages/PasswordChanged";
+import Pincodes from "./pages/Pincodes";
+// import EmailSent from "./pages/EmailSent";
+// import SetNewPassword from "./pages/SetNewPassword";
+// import ForgotPassword from "./pages/ForgotPassword";
+// import PasswordChanged from "./pages/PasswordChanged";
 
 const queryClient = new QueryClient();
 
@@ -34,10 +35,10 @@ const App = () => (
           
           {/* Login and Auth routes */}
           <Route path="/login" element={<Login />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/email-sent" element={<EmailSent />} />
-          <Route path="/set-new-password" element={<SetNewPassword />} />
-          <Route path="/password-changed" element={<PasswordChanged />} />
+          {/* <Route path="/email-sent" element={<EmailSent />} /> */}
+          {/* <Route path="/forgot-password" element={<ForgotPassword />} /> */}
+          {/* <Route path="/set-new-password" element={<SetNewPassword />} /> */}
+          {/* <Route path="/password-changed" element={<PasswordChanged />} /> */}
 
           {/* Main layout routes */}
           <Route path="/" element={<MainLayout />}>
@@ -48,7 +49,8 @@ const App = () => (
             <Route path="orders" element={<Orders />} />
             <Route path="orders/:id" element={<OrderDetails />} />
             <Route path="customers" element={<Customers />} />
-            <Route path="banners" element={<Banners />} />          
+            <Route path="banners" element={<Banners />} />
+            <Route path="pincodes" element={<Pincodes />} />
           </Route>
           
           {/* Catch all route */}

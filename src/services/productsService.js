@@ -10,13 +10,8 @@ async function uploadProductImages(images) {
   const imageUrls = await Promise.all(
     images.map(async (image) => {
       if (image instanceof File) {
-        // Creates a reference to the file location
         const storageRef = ref(storage, `product-images/${Date.now()}-${image.name}`);
-        
-        // Uploads the file
-        const snapshot = await uploadBytes(storageRef, image); 
-        
-        // Gets the public URL
+        const snapshot = await uploadBytes(storageRef, image);        
         return getDownloadURL(snapshot.ref);
       }
       if (typeof image === 'string') {
@@ -25,50 +20,61 @@ async function uploadProductImages(images) {
       return null;
     })
   );
-  return imageUrls.filter(url => url); // Filter out nulls
+  return imageUrls.filter(url => url);
 }
 
 export async function addProduct(product) {
   const imageUrls = await uploadProductImages(product.images);
 
-  // Store main product data in variants array for both Feed and Supplement products
-  const mainVariant = {
-    regularPrice: product.regularPrice || 0,
-    salePrice: product.salePrice || 0,
-    stockQuantity: product.stockQuantity || 0,
-    unit: product.unit || '',
-    volume: product.weight || product.volume || '', // Use weight as volume for main variant
-    status: product.status || 'in_stock' // Add status to each variant
-  };
-
-  // Build productData object excluding variant-related fields
-  const { 
-    images, // Exclude images array (input from form)
-    image, // Exclude individual image field
-    regularPrice, 
-    salePrice, 
-    stockQuantity, 
-    unit, 
-    weight, 
-    volume, 
-    status, // Exclude status from main product since it's now in variants
+  const {
+    images,
+    image,
+    sku,
+    regularPrice,
+    salePrice,
+    stockQuantity,
+    unit,
+    weight,
+    volume,
+    status,
     variants,
-    ...cleanProductData 
+    ...cleanProductData
   } = product;
 
   const productData = {
     ...cleanProductData,
-    category: product.category || 'Feed', // Default category
-    animal: product.animal || 'Cow', // Default animal
-    gallery: imageUrls, // The full gallery
-    createdAt: Date.now(), // Use timestamp as long number
-    updatedAt: Date.now() // Use timestamp as long number
+    category: product.category || 'Feed',
+    animal: product.animal || 'Cow',
+    gallery: imageUrls,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
   };
 
-  productData.variants = [mainVariant];
-
-  if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
-    productData.variants = [mainVariant, ...product.variants];
+  // Only add mainVariant for Feed products
+  if ((product.category || 'Feed') === 'Feed') {
+    const mainVariant = {
+      sku: product.sku || '',
+      regularPrice: product.regularPrice || 0,
+      salePrice: product.salePrice || 0,
+      stockQuantity: product.stockQuantity || 0,
+      unit: product.unit || '',
+      volume: product.weight || product.volume || '',
+      status: product.status || 'in_stock'
+    };
+    productData.variants = [mainVariant];
+    if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+      productData.variants = [mainVariant, ...product.variants];
+    }
+  } else if ((product.category || 'Feed') === 'Supplement') {
+    // For Supplement, only use the variants array (no mainVariant), but ensure status is set
+    if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+      productData.variants = product.variants.map(v => ({
+        ...v,
+        status: v.status || 'in_stock',
+      }));
+    } else {
+      productData.variants = [];
+    }
   }
 
   console.log('Adding product to Firestore:', productData);
@@ -83,71 +89,80 @@ export async function addProduct(product) {
 
 export async function updateProduct(id, updates) {
   let mainVariant = null;
-  let cleanUpdates = { ...updates };
+  // let cleanUpdates = { ...updates };
 
-  if (updates.regularPrice !== undefined || updates.salePrice !== undefined || 
+  if (updates.sku !== undefined || updates.regularPrice !== undefined || updates.salePrice !== undefined || 
       updates.stockQuantity !== undefined || updates.unit !== undefined || 
       updates.volume !== undefined || updates.weight !== undefined || 
       updates.status !== undefined) {
-    
-    mainVariant = {
-      regularPrice: updates.regularPrice || 0,
-      salePrice: updates.salePrice || 0,
-      stockQuantity: updates.stockQuantity || 0,
-      unit: updates.unit || '',
-      volume: updates.weight || updates.volume || '',
-      status: updates.status || 'in_stock'
-    };
 
-    // Build cleanUpdates object excluding variant-related fields
-    const { 
-      images, 
+    const {
+      images,
       image,
-      regularPrice, 
-      salePrice, 
-      stockQuantity, 
-      unit, 
-      weight, 
-      volume, 
+      sku,
+      regularPrice,
+      salePrice,
+      stockQuantity,
+      unit,
+      weight,
+      volume,
       status,
       variants,
-      ...otherUpdates 
+      nameTamil,
+      descriptionTamil,
+      ...cleanProductData
     } = updates;
 
-    cleanUpdates = otherUpdates;
-  }
+    const productData = {
+      ...cleanProductData,
+      category: updates.category || 'Feed',
+      animal: updates.animal || 'Cow',
+      gallery: updates.gallery || [],
+      createdAt: updates.createdAt || Date.now(),
+      updatedAt: Date.now(),
+      nameTamil: nameTamil || '',
+      descriptionTamil: descriptionTamil || ''
+    };
 
-  const productData = { 
-    ...cleanUpdates,
-    updatedAt: Date.now() // Use timestamp as long number
-  };
-
-  // Only process and update image fields if new images are actually passed in.
-  if (updates.images && Array.isArray(updates.images)) {
-    const imageUrls = await uploadProductImages(updates.images);
-    productData.gallery = imageUrls; // The full gallery
-  }
-
-  // Add variants to productData if mainVariant was created
-  if (mainVariant) {
-    // Initialize variants array with main product data as first variant
-    productData.variants = [mainVariant];
-
-    // If there are additional variants in the updates, add them to the array
-    if (updates.variants && Array.isArray(updates.variants) && updates.variants.length > 0) {
-      // Add any additional variants (excluding the first one which is the main product data)
-      productData.variants = [mainVariant, ...updates.variants];
+    if ((updates.category || 'Feed') === 'Feed') {
+      const mainVariant = {
+        sku: updates.sku || '',
+        regularPrice: updates.regularPrice || 0,
+        salePrice: updates.salePrice || 0,
+        stockQuantity: updates.stockQuantity || 0,
+        unit: updates.unit || '',
+        volume: updates.weight || updates.volume || '',
+        status: updates.status || 'in_stock'
+      };
+      productData.variants = [mainVariant];
+      if (updates.variants && Array.isArray(updates.variants) && updates.variants.length > 0) {
+        productData.variants = [mainVariant, ...updates.variants];
+      }
+    } else if ((updates.category || 'Feed') === 'Supplement') {
+      if (updates.variants && Array.isArray(updates.variants) && updates.variants.length > 0) {
+        productData.variants = updates.variants.map(v => ({
+          ...v,
+          status: v.status || 'in_stock',
+        }));
+      } else {
+        productData.variants = [];
+      }
     }
+
+
+    if (mainVariant) {
+      productData.variants = [mainVariant];
+      if (updates.variants && Array.isArray(updates.variants) && updates.variants.length > 0) {
+        productData.variants = [mainVariant, ...updates.variants];
+      }
+    }
+
+    // console.log('Updating product in Firestore:', { id, productData });
+    const productRef = doc(db, 'products', id);
+    await updateDoc(productRef, productData);
+    // console.log('Product updated successfully');
+    return { id, ...productData };
   }
-
-  // console.log('Updating product in Firestore:', { id, productData });
-
-  const productRef = doc(db, 'products', id);
-  await updateDoc(productRef, productData);
-  
-  // console.log('Product updated successfully');
-  
-  return { id, ...productData };
 }
 
 export async function getProducts() {

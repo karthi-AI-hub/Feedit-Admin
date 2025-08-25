@@ -257,9 +257,9 @@ const Dashboard = () => {
                 <h2 className="font-bold text-lg sm:text-xl text-gray-800">Best Selling Products</h2>
                 <p className="text-xs sm:text-sm text-gray-500">Top products by revenue</p>
               </div>
-              <button className="text-gray-400 hover:text-gray-600 transition">
+              {/* <button className="text-gray-400 hover:text-gray-600 transition">
                 <MoreVertical className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
+              </button> */}
             </div>
             <div className="space-y-3 sm:space-y-4">
               {dashboardData.bestSelling.length > 0 ? (
@@ -289,10 +289,10 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
-            <button className="mt-4 sm:mt-6 w-full bg-green-600 text-white text-xs sm:text-sm py-2 rounded-lg hover:bg-green-700 font-medium shadow-sm transition flex items-center justify-center gap-2">
+            {/* <button className="mt-4 sm:mt-6 w-full bg-green-600 text-white text-xs sm:text-sm py-2 rounded-lg hover:bg-green-700 font-medium shadow-sm transition flex items-center justify-center gap-2">
               <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4" />
               VIEW FULL REPORT
-            </button>
+            </button> */}
           </div>
         </div>
 

@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import CustomerDetailModal from '../components/CustomerDetailModal';
+// Removed Headless UI Dialog, using pure React modal below
 import { Printer } from 'lucide-react';
 import { fetchCustomersAPI } from '../services/customerService';
 import jsPDF from 'jspdf';
@@ -9,6 +11,8 @@ export default function Customers() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [selectedCustomers, setSelectedCustomers] = useState([]);
+  const [detailCustomer, setDetailCustomer] = useState(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const PAGE_SIZE = 10;
 
   // Fetch customers function for reuse
@@ -45,34 +49,34 @@ export default function Customers() {
     );
   };
 
-  const handlePrint = () => {
-    if (selectedCustomers.length === 0) {
-      alert('Please select customers to print.');
-      return;
-    }
-    const doc = new jsPDF();
-    const tableData = customers
-      .filter(c => selectedCustomers.includes(c.id))
-      .map(c => [
-        c.name ? c.name : '-',
-        c.number ? c.number : '-',
-        c.email ? c.email : '-',
-        c.joinDate ? c.joinDate : '-',
-        c.pinCode ? c.pinCode : '-',
-        c.totalOrders === 0 ? 0 : c.totalOrders || '-',
-        c.rewardPoints !== undefined && c.rewardPoints !== null ? c.rewardPoints : '-',
-      ]);
+  // const handlePrint = () => {
+  //   if (selectedCustomers.length === 0) {
+  //     alert('Please select customers to print.');
+  //     return;
+  //   }
+  //   const doc = new jsPDF();
+  //   const tableData = customers
+  //     .filter(c => selectedCustomers.includes(c.id))
+  //     .map(c => [
+  //       c.name ? c.name : '-',
+  //       c.number ? c.number : '-',
+  //       c.email ? c.email : '-',
+  //       c.joinDate ? c.joinDate : '-',
+  //       c.pinCode ? c.pinCode : '-',
+  //       c.totalOrders === 0 ? 0 : c.totalOrders || '-',
+  //       c.rewardPoints !== undefined && c.rewardPoints !== null ? c.rewardPoints : '-',
+  //     ]);
     
-    autoTable(doc, {
-      head: [['Customer Name', 'Phone', 'Email', 'Date Joined', 'Pin Code', 'Total Orders', 'Reward Points']],
-      body: tableData,
-    });
-    const date = new Date();
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    doc.save(`CX_${day}_${month}_${year}.pdf`);
-  };
+  //   autoTable(doc, {
+  //     head: [['Customer Name', 'Phone', 'Email', 'Date Joined', 'Pin Code', 'Total Orders', 'Reward Points']],
+  //     body: tableData,
+  //   });
+  //   const date = new Date();
+  //   const day = String(date.getDate()).padStart(2, '0');
+  //   const month = String(date.getMonth() + 1).padStart(2, '0');
+  //   const year = date.getFullYear();
+  //   doc.save(`CX_${day}_${month}_${year}.pdf`);
+  // };
 
   // Helper for smart pagination range (show first, last, current, neighbors)
   function getPageNumbers() {
@@ -106,14 +110,14 @@ export default function Customers() {
               </svg>
               Refresh
             </button>
-            <button onClick={handlePrint} className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none">
+            {/* <button onClick={handlePrint} className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none">
               <Printer className="w-5 h-5" /> PRINT
-            </button>
+            </button> */}
+            <CustomerDetailModal customer={detailCustomer} open={isDetailOpen} onClose={() => setIsDetailOpen(false)} />
           </div>
         </div>
       </div>
 
-      {/* Table Card - removed green background and extra padding */}
       <div className="rounded-2xl shadow p-0 flex-1 flex flex-col">
         <div className="flex flex-col sm:flex-row items-center justify-between ml-4 mt-4 mb-4 gap-2 sm:gap-4">
           <span className="font-semibold text-base">{customers.length} customers</span>
@@ -160,7 +164,9 @@ export default function Customers() {
                     </td>
                     <td className="px-2 sm:px-3 py-2 flex items-center gap-2 max-w-[140px] truncate">
                       <img src={c.avatar || '/placeholder.png'} alt={c.name} className="w-7 h-7 rounded-full object-cover border flex-shrink-0" />
-                      <span className="truncate">{c.name}</span>
+                      <button className="truncate" onClick={() => { setDetailCustomer(c); setIsDetailOpen(true); }}>
+                        {c.name}
+                      </button>
                     </td>
                     <td className="px-2 sm:px-3 py-2 whitespace-nowrap">{c.number}</td>
                     <td className="px-2 sm:px-3 py-2 whitespace-nowrap">{c.email}</td>

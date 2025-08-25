@@ -617,7 +617,6 @@ export default function ProductForm({
             />
           </div>
 
-          {/* Only show these fields for Feed products, not Supplement */}
           {productForm.category === "Feed" && (
             <>
               <div className="grid grid-cols-2 gap-4">
@@ -867,6 +866,7 @@ export default function ProductForm({
                     <SelectContent>
                       <SelectItem value="ML">ML</SelectItem>
                       <SelectItem value="Litre">Litre</SelectItem>
+                      <SelectItem value="KG">KG</SelectItem>
                       <SelectItem value="Grams">Grams</SelectItem>
                       <SelectItem value="Bolus">Bolus</SelectItem>
                     </SelectContent>
@@ -910,6 +910,22 @@ export default function ProductForm({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
+                  <Label htmlFor="variantRegularPrice">Regular Price</Label>
+                  <Input
+                    id="variantRegularPrice"
+                    type="number"
+                    value={newVariant.regularPrice}
+                    onChange={(e) =>
+                      setNewVariant((prev) => ({
+                        ...prev,
+                        regularPrice: e.target.value,
+                      }))
+                    }
+                    onWheel={(e) => e.target.blur()}
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="variantSalePrice">Sale Price</Label>
                   <Input
                     id="variantSalePrice"
@@ -925,23 +941,6 @@ export default function ProductForm({
                     disabled={isLoading}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="variantRegularPrice">Regular Price</Label>
-                  <Input
-                    id="variantRegularPrice"
-                    type="number"
-                    value={newVariant.regularPrice}
-                    onChange={(e) =>
-                      setNewVariant((prev) => ({
-                        ...prev,
-                        regularPrice: e.target.value,
-                      }))
-                    }
-                    onWheel={(e) => e.target.blur()}
-                    disabled={isLoading}
-                  />
-                </div>                
-                
               </div>
 
               <div className="flex items-end">

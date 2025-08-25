@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+
 import { 
   fetchOrderByIdAPI, 
   updateOrderStatusAPI 
@@ -113,6 +114,7 @@ const OrderDetails = () => {
     </div>
   );
 
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
@@ -208,11 +210,11 @@ const OrderDetails = () => {
                   style={{ minWidth: '140px' }}
                 />
               )}
-              <button className="bg-gray-100 p-2 rounded">
+              {/* <button className="bg-gray-100 p-2 rounded">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                 </svg>
-              </button>
+              </button> */}
               <button
                 onClick={handleStatusUpdate}
                 disabled={updating || status === order.orderStatus}
@@ -241,9 +243,13 @@ const OrderDetails = () => {
               <div><span className="font-medium">Email:</span> {order.address?.email ?? '-'}</div>
               <div><span className="font-medium">Phone:</span> {order.address?.phoneNumber ?? order.address?.phone ?? '-'}</div>
             </div>
-            <button className="w-full mt-4 bg-green-700 text-white py-2 rounded text-sm">
+            {/* <button
+              className="w-full mt-4 bg-green-700 text-white py-2 rounded text-sm"
+              disabled
+              style={{ opacity: 0.5, cursor: 'not-allowed' }}
+            >
               View profile
-            </button>
+            </button> */}
           </div>
 
           {/* Order Info */}
@@ -262,9 +268,11 @@ const OrderDetails = () => {
               <div><span className="font-medium">Payment Method:</span> {order.paymentMethod ?? 'Cash on Delivery'}</div>
               <div><span className="font-medium">Status:</span> {status || order.orderStatus}</div>
             </div>
-            <button className="w-full mt-4 bg-green-700 text-white py-2 rounded text-sm">
+            {/* <button className="w-full mt-4 bg-green-700 text-white py-2 rounded text-sm"
+            disabled
+            style={{ opacity: 0.5, cursor: 'not-allowed' }}>
               Download Info
-            </button>
+            </button> */}
           </div>
 
           {/* Deliver to */}
@@ -289,9 +297,11 @@ const OrderDetails = () => {
               }</div>
               <div><span className="font-medium">Nearby:</span> {order.address?.nearBy ?? '-'}</div>
             </div>
-            <button className="w-full mt-4 bg-green-700 text-white py-2 rounded text-sm">
+            {/* <button className="w-full mt-4 bg-green-700 text-white py-2 rounded text-sm"
+            disabled
+            style={{ opacity: 0.5, cursor: 'not-allowed' }}>
               View profile
-            </button>
+            </button> */}
           </div>
         </div>
 
@@ -318,12 +328,12 @@ const OrderDetails = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-semibold text-gray-900">Bought - Awaiting Delivery</h3>
-              <button className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm">
+              {/* <button className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 Download Invoice
-              </button>
+              </button> */}
             </div>
             
             {/* Progress Timeline */}

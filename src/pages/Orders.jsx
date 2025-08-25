@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ExternalLink, Printer, Calendar } from 'lucide-react';
+import { ExternalLink, Printer } from 'lucide-react';
 import { fetchOrdersAPI } from '../services/ordersService';
 
 export default function Orders() {
@@ -7,7 +7,6 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [dateRange, setDateRange] = useState('Oct 11,2023 - Nov 11,2022');
 
   // Fetch orders function for reuse
   const fetchOrders = async () => {
@@ -63,9 +62,9 @@ export default function Orders() {
               </svg>
               Refresh
             </button>
-            <button className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none">
+            {/* <button className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none">
               <Printer className="w-5 h-5" /> PRINT
-            </button>
+            </button> */}
           </div>
         </div>
       </div>

@@ -54,11 +54,11 @@ export async function addProduct(product) {
   if ((product.category || 'Feed') === 'Feed') {
     const mainVariant = {
       sku: product.sku || '',
-      regularPrice: product.regularPrice || 0,
-      salePrice: product.salePrice || 0,
-      stockQuantity: product.stockQuantity || 0,
+      regularPrice: Number(product.regularPrice) || 0,
+      salePrice: Number(product.salePrice) || 0,
+      stockQuantity: Number(product.stockQuantity) || 0,
       unit: product.unit || '',
-      volume: product.weight || product.volume || '',
+      volume: Number(product.weight || product.volume) || 0,
       status: product.status || 'in_stock'
     };
     productData.variants = [mainVariant];
@@ -70,6 +70,10 @@ export async function addProduct(product) {
     if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
       productData.variants = product.variants.map(v => ({
         ...v,
+        regularPrice: Number(v.regularPrice) || 0,
+        salePrice: Number(v.salePrice) || 0,
+        stockQuantity: Number(v.stockQuantity) || 0,
+        volume: Number(v.volume) || 0,
         status: v.status || 'in_stock',
       }));
     } else {
@@ -88,81 +92,75 @@ export async function addProduct(product) {
 }
 
 export async function updateProduct(id, updates) {
-  let mainVariant = null;
-  // let cleanUpdates = { ...updates };
+  const {
+    images,
+    image,
+    sku,
+    regularPrice,
+    salePrice,
+    stockQuantity,
+    unit,
+    weight,
+    volume,
+    status,
+    variants,
+    nameTamil,
+    descriptionTamil,
+    ...cleanProductData
+  } = updates;
 
-  if (updates.sku !== undefined || updates.regularPrice !== undefined || updates.salePrice !== undefined || 
-      updates.stockQuantity !== undefined || updates.unit !== undefined || 
-      updates.volume !== undefined || updates.weight !== undefined || 
-      updates.status !== undefined) {
+  const productData = {
+    ...cleanProductData,
+    category: updates.category || 'Feed',
+    animal: updates.animal || 'Cow',
+    gallery: updates.gallery || [],
+    createdAt: updates.createdAt || Date.now(),
+    updatedAt: Date.now(),
+    nameTamil: nameTamil || '',
+    descriptionTamil: descriptionTamil || ''
+  };
 
-    const {
-      images,
-      image,
-      sku,
-      regularPrice,
-      salePrice,
-      stockQuantity,
-      unit,
-      weight,
-      volume,
-      status,
-      variants,
-      nameTamil,
-      descriptionTamil,
-      ...cleanProductData
-    } = updates;
-
-    const productData = {
-      ...cleanProductData,
-      category: updates.category || 'Feed',
-      animal: updates.animal || 'Cow',
-      gallery: updates.gallery || [],
-      createdAt: updates.createdAt || Date.now(),
-      updatedAt: Date.now(),
-      nameTamil: nameTamil || '',
-      descriptionTamil: descriptionTamil || ''
+  if ((updates.category || 'Feed') === 'Feed') {
+    const mainVariant = {
+      sku: updates.sku || '',
+      regularPrice: Number(updates.regularPrice) || 0,
+      salePrice: Number(updates.salePrice) || 0,
+      stockQuantity: Number(updates.stockQuantity) || 0,
+      unit: updates.unit || '',
+      volume: Number(updates.weight || updates.volume) || 0,
+      status: updates.status || 'in_stock'
     };
-
-    if ((updates.category || 'Feed') === 'Feed') {
-      const mainVariant = {
-        sku: updates.sku || '',
-        regularPrice: updates.regularPrice || 0,
-        salePrice: updates.salePrice || 0,
-        stockQuantity: updates.stockQuantity || 0,
-        unit: updates.unit || '',
-        volume: updates.weight || updates.volume || '',
-        status: updates.status || 'in_stock'
-      };
-      productData.variants = [mainVariant];
-      if (updates.variants && Array.isArray(updates.variants) && updates.variants.length > 0) {
-        productData.variants = [mainVariant, ...updates.variants];
-      }
-    } else if ((updates.category || 'Feed') === 'Supplement') {
-      if (updates.variants && Array.isArray(updates.variants) && updates.variants.length > 0) {
-        productData.variants = updates.variants.map(v => ({
-          ...v,
-          status: v.status || 'in_stock',
-        }));
-      } else {
-        productData.variants = [];
-      }
+    let otherVariants = [];
+    if (updates.variants && Array.isArray(updates.variants) && updates.variants.length > 0) {
+      otherVariants = updates.variants.filter(v => v.sku !== mainVariant.sku);
+      otherVariants = otherVariants.map(v => ({
+        ...v,
+        regularPrice: Number(v.regularPrice) || 0,
+        salePrice: Number(v.salePrice) || 0,
+        stockQuantity: Number(v.stockQuantity) || 0,
+        volume: Number(v.volume) || 0,
+        status: v.status || 'in_stock',
+      }));
     }
-
-
-    if (mainVariant) {
-      productData.variants = [mainVariant];
-      if (updates.variants && Array.isArray(updates.variants) && updates.variants.length > 0) {
-        productData.variants = [mainVariant, ...updates.variants];
-      }
+    productData.variants = [mainVariant, ...otherVariants];
+  } else if ((updates.category || 'Feed') === 'Supplement') {
+    if (updates.variants && Array.isArray(updates.variants) && updates.variants.length > 0) {
+      productData.variants = updates.variants.map(v => ({
+        ...v,
+        regularPrice: Number(v.regularPrice) || 0,
+        salePrice: Number(v.salePrice) || 0,
+        stockQuantity: Number(v.stockQuantity) || 0,
+        volume: Number(v.volume) || 0,
+        status: v.status || 'in_stock',
+      }));
+    } else {
+      productData.variants = [];
     }
-
-    // console.log('Updating product in Firestore:', { id, productData });
-    const productRef = doc(db, 'products', id);
-    await updateDoc(productRef, productData);
-    // console.log('Product updated successfully');
-    return { id, ...productData };
   }
+
+  const productRef = doc(db, 'products', id);
+  await updateDoc(productRef, productData);
+  return { id, ...productData };
 }
 
 export async function getProducts() {

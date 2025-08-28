@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { CheckCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { fetchBannersAPI, updateBannerStatusAPI, uploadBannerAPI, deleteBannerAPI } from '../services/bannerService';
 
 export default function Banners() {
@@ -7,7 +7,7 @@ export default function Banners() {
   const [newImages, setNewImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(null); // Track which banner is being deleted
+  const [deleting, setDeleting] = useState(null);
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
 
@@ -52,7 +52,7 @@ export default function Banners() {
   };
 
   const toggleActive = async (id, currentStatus) => {
-    if (saving) return; // Prevent multiple clicks
+    if (saving) return;
     
     try {
       await updateBannerStatusAPI(id, !currentStatus);
@@ -91,7 +91,7 @@ export default function Banners() {
 
   const handleSave = async () => {
     if (newImages.length === 0) return;
-    if (saving) return; // Prevent duplicate submissions
+    if (saving) return;
     
     setSaving(true);
     setError('');

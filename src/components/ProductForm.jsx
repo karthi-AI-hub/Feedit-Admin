@@ -16,7 +16,7 @@ import { DialogFooter } from "@/components/ui/dialog";
 import {
   addProduct,
   updateProduct,
-  deleteProduct,
+  // deleteProduct,
 } from "@/services/productsService";
 
 export default function ProductForm({
@@ -25,7 +25,7 @@ export default function ProductForm({
   categories = [],
   onSave,
   onCancel,
-  onDelete,
+  // onDelete,
 }) {
   // Initial form state
   const emptyProductForm = {
@@ -53,6 +53,7 @@ export default function ProductForm({
   const [newTag, setNewTag] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(false);
   const [error, setError] = useState("");
 
   const errorRef = useRef(null);
@@ -80,50 +81,62 @@ export default function ProductForm({
   });
 
   useEffect(() => {
-    if (mode === "edit" && initialData) {
-      // For Feed, prefill fields from the first variant if available
-      let feedFields = {};
-      if ((initialData.category || "Feed") === "Feed" && Array.isArray(initialData.variants) && initialData.variants.length > 0) {
-        const v = initialData.variants[0];
-        feedFields = {
-          sku: v.sku || "",
-          stockQuantity: v.stockQuantity || "",
-          regularPrice: v.regularPrice || "",
-          salePrice: v.salePrice || "",
-          weight: v.volume || "",
-          unit: v.unit || "",
-          status: v.status || initialData.status || "in_stock",
-        };
+    let isMounted = true;
+    const loadInitial = async () => {
+      setIsInitialLoading(true);
+      try {
+        if (mode === "edit" && initialData) {
+          // For Feed, prefill fields from the first variant if available
+          let feedFields = {};
+          if ((initialData.category || "Feed") === "Feed" && Array.isArray(initialData.variants) && initialData.variants.length > 0) {
+            const v = initialData.variants[0];
+            feedFields = {
+              sku: v.sku || "",
+              stockQuantity: v.stockQuantity || "",
+              regularPrice: v.regularPrice || "",
+              salePrice: v.salePrice || "",
+              weight: v.volume || "",
+              unit: v.unit || "",
+              status: v.status || initialData.status || "in_stock",
+            };
+          }
+          if (isMounted) {
+            setProductForm({
+              name: initialData.name || "",
+              nameTamil: initialData.nameTamil || "",
+              description: initialData.description || "",
+              descriptionTamil: initialData.descriptionTamil || "",
+              category: initialData.category || "",
+              brand: initialData.brand || "",
+              ...feedFields,
+              image: initialData.image || "",
+              tags: initialData.tags || "",
+              animal: initialData.animal || "",
+            });
+            setCurrentTags(initialData.tags || []);
+            if (initialData.gallery && Array.isArray(initialData.gallery)) {
+              setProductImages(initialData.gallery.map((url) => ({ preview: url })));
+            } else {
+              setProductImages([]);
+            }
+            if (initialData.variants && Array.isArray(initialData.variants)) {
+              setVariants(initialData.variants);
+            } else {
+              setVariants([]);
+            }
+          }
+        } else {
+          setProductForm(emptyProductForm);
+          setProductImages([]);
+          setCurrentTags([]);
+          setVariants([]);
+        }
+      } finally {
+        setIsInitialLoading(false);
       }
-      setProductForm({
-        name: initialData.name || "",
-        nameTamil: initialData.nameTamil || "",
-        description: initialData.description || "",
-        descriptionTamil: initialData.descriptionTamil || "",
-        category: initialData.category || "",
-        brand: initialData.brand || "",
-        ...feedFields,
-        image: initialData.image || "",
-        tags: initialData.tags || "",
-        animal: initialData.animal || "",
-      });
-      setCurrentTags(initialData.tags || []);
-      if (initialData.gallery && Array.isArray(initialData.gallery)) {
-        setProductImages(initialData.gallery.map((url) => ({ preview: url })));
-      } else {
-        setProductImages([]);
-      }
-      if (initialData.variants && Array.isArray(initialData.variants)) {
-        setVariants(initialData.variants);
-      } else {
-        setVariants([]);
-      }
-    } else {
-  setProductForm(emptyProductForm);
-      setProductImages([]);
-      setCurrentTags([]);
-      setVariants([]);
-    }
+    };
+    loadInitial();
+    return () => { isMounted = false; };
   }, [initialData, mode]);
 
   const handleInputChange = (e) => {
@@ -355,10 +368,10 @@ export default function ProductForm({
       }
     }
 
-    // if (productImages.length === 0) {
-    //   setError("At least one product image is required");
-    //   return;
-    // }
+    if (productImages.length === 0) {
+      setError("At least one product image is required");
+      return;
+    }
 
     // if (!currentTags || currentTags.length === 0) {
     //   setError("At least one tag is required");
@@ -437,57 +450,73 @@ export default function ProductForm({
     }
   };
 
-  const handleDelete = async () => {
-    // Prevent delete if already deleting or no product to delete
-    if (isDeleting || mode !== "edit" || !initialData?.id) return;
+  // const handleDelete = async () => {
+  //   // Prevent delete if already deleting or no product to delete
+  //   if (isDeleting || mode !== "edit" || !initialData?.id) return;
 
-    // Confirm deletion
-    const isConfirmed = window.confirm(
-      `Are you sure you want to delete "${productForm.name}"? This action cannot be undone.`
-    );
+  //   // Confirm deletion
+  //   const isConfirmed = window.confirm(
+  //     `Are you sure you want to delete "${productForm.name}"? This action cannot be undone.`
+  //   );
 
-    if (!isConfirmed) return;
+  //   if (!isConfirmed) return;
 
-    setIsDeleting(true);
-    setError("");
+  //   setIsDeleting(true);
+  //   setError("");
 
-    try {
-      await deleteProduct(initialData.id);
-      console.log("Product deleted successfully");
+  //   try {
+  //     await deleteProduct(initialData.id);
+  //     console.log("Product deleted successfully");
 
-      // Success callback
-      if (onDelete) onDelete(initialData.id);
-    } catch (error) {
-      console.error("Error deleting product:", error);
+  //     // Success callback
+  //     if (onDelete) onDelete(initialData.id);
+  //   } catch (error) {
+  //     console.error("Error deleting product:", error);
 
-      // Enhanced error handling
-      let errorMessage = "Failed to delete product. ";
+  //     // Enhanced error handling
+  //     let errorMessage = "Failed to delete product. ";
 
-      if (error.code === "permission-denied") {
-        errorMessage += "You don't have permission to delete this product.";
-      } else if (error.code === "network-request-failed") {
-        errorMessage += "Network error. Please check your internet connection.";
-      } else if (error.message) {
-        errorMessage += error.message;
-      } else {
-        errorMessage += "Please try again.";
-      }
+  //     if (error.code === "permission-denied") {
+  //       errorMessage += "You don't have permission to delete this product.";
+  //     } else if (error.code === "network-request-failed") {
+  //       errorMessage += "Network error. Please check your internet connection.";
+  //     } else if (error.message) {
+  //       errorMessage += error.message;
+  //     } else {
+  //       errorMessage += "Please try again.";
+  //     }
 
-      setErrorAndScroll(errorMessage);
+  //     setErrorAndScroll(errorMessage);
 
-      // Show alert for critical errors
-      if (error.code === "permission-denied") {
-        alert(
-          "Access Denied: Unable to delete product. Please contact administrator."
-        );
-      }
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+  //     // Show alert for critical errors
+  //     if (error.code === "permission-denied") {
+  //       alert(
+  //         "Access Denied: Unable to delete product. Please contact administrator."
+  //       );
+  //     }
+  //   } finally {
+  //     setIsDeleting(false);
+  //   }
+  // };
+
+  // Common loading overlay for all loading states
+  const isLoadingOverlay = isInitialLoading || isLoading || isDeleting;
+  let loadingMessage = "Loading...";
+  if (isInitialLoading) loadingMessage = "Loading Product Data...";
+  else if (isLoading) loadingMessage = mode === "add" ? "Adding Product..." : "Updating Product...";
+  else if (isDeleting) loadingMessage = "Deleting Product...";
 
   return (
-    <form onSubmit={handleSave}>
+    <>
+      {isLoadingOverlay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80">
+          <div className="flex flex-col items-center">
+            <div className="w-12 h-12 border-4 border-green-700 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <span className="text-green-800 font-semibold text-lg">{loadingMessage}</span>
+          </div>
+        </div>
+      )}
+      <form onSubmit={handleSave}>
       {/* Enhanced error display */}
       {error && (
         <div 
@@ -1009,64 +1038,37 @@ export default function ProductForm({
       )}
 
       <DialogFooter>
-        <div className="flex items-center justify-between w-full mt-4">
-          {/* Left side - Delete button (only in edit mode) */}
-          <div>
-            {mode === "edit" && (
-              <Button
-                variant="destructive"
-                type="button"
-                onClick={handleDelete}
-                disabled={isLoading || isDeleting}
-                className="bg-red-600 hover:bg-red-700 text-white"
-              >
-                {isDeleting ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Deleting...
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <Trash2 className="h-4 w-4" />
-                    Delete Product
-                  </div>
-                )}
-              </Button>
-            )}
-          </div>
-
-          {/* Right side - Cancel and Save buttons */}
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={onCancel}
-              disabled={isLoading || isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading || isDeleting || !productForm.name.trim()}
-              style={{
-                backgroundColor:
-                  isLoading || isDeleting ? "#9CA3AF" : "#007539",
-              }}
-            >
-              {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  {mode === "add" ? "Adding Product..." : "Updating Product..."}
-                </div>
-              ) : mode === "add" ? (
-                "Add Product"
-              ) : (
-                "Update Product"
-              )}
-            </Button>
-          </div>
+        <div className="flex justify-end gap-2 w-full mt-4">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={onCancel}
+            disabled={isLoading || isDeleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={isLoading || isDeleting || !productForm.name.trim()}
+            style={{
+              backgroundColor:
+                isLoading || isDeleting ? "#9CA3AF" : "#007539",
+            }}
+          >
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                {mode === "add" ? "Adding Product..." : "Updating Product..."}
+              </div>
+            ) : mode === "add" ? (
+              "Add Product"
+            ) : (
+              "Update Product"
+            )} 
+          </Button>
         </div>
-      </DialogFooter>
+  </DialogFooter>
     </form>
+    </>
   );
 }

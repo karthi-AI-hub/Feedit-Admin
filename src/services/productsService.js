@@ -38,6 +38,7 @@ export async function addProduct(product) {
     volume,
     status,
     variants,
+    active,
     ...cleanProductData
   } = product;
 
@@ -47,10 +48,10 @@ export async function addProduct(product) {
     animal: product.animal || 'Cow',
     gallery: imageUrls,
     createdAt: Date.now(),
-    updatedAt: Date.now()
+    updatedAt: Date.now(),
+    active: typeof active === 'boolean' ? active : true
   };
 
-  // Only add mainVariant for Feed products
   if ((product.category || 'Feed') === 'Feed') {
     const mainVariant = {
       sku: product.sku || '',
@@ -66,7 +67,6 @@ export async function addProduct(product) {
       productData.variants = [mainVariant, ...product.variants];
     }
   } else if ((product.category || 'Feed') === 'Supplement') {
-    // For Supplement, only use the variants array (no mainVariant), but ensure status is set
     if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
       productData.variants = product.variants.map(v => ({
         ...v,
@@ -92,6 +92,25 @@ export async function addProduct(product) {
 }
 
 export async function updateProduct(id, updates) {
+  // Fetch the latest product data
+  const productRef = doc(db, 'products', id);
+  const docSnap = await getDoc(productRef);
+  if (!docSnap.exists()) {
+    throw new Error('Product not found');
+  }
+  const existing = docSnap.data();
+  let newGallery = [];
+  if (updates.images && Array.isArray(updates.images)) {
+    const fileImages = updates.images.filter(img => img instanceof File);
+    const stringUrls = updates.images.filter(img => typeof img === 'string');
+    const uploadedUrls = await uploadProductImages(fileImages);
+    newGallery = [...stringUrls, ...uploadedUrls];
+  } else if (typeof updates.gallery !== 'undefined') {
+    newGallery = updates.gallery;
+  } else {
+    newGallery = existing.gallery || [];
+  }
+
   const {
     images,
     image,
@@ -106,29 +125,32 @@ export async function updateProduct(id, updates) {
     variants,
     nameTamil,
     descriptionTamil,
+    active,
     ...cleanProductData
   } = updates;
 
   const productData = {
+    ...existing,
     ...cleanProductData,
-    category: updates.category || 'Feed',
-    animal: updates.animal || 'Cow',
-    gallery: updates.gallery || [],
-    createdAt: updates.createdAt || Date.now(),
+    category: updates.category || existing.category || 'Feed',
+    animal: updates.animal || existing.animal || 'Cow',
+    gallery: newGallery,
+    createdAt: existing.createdAt || Date.now(),
     updatedAt: Date.now(),
-    nameTamil: nameTamil || '',
-    descriptionTamil: descriptionTamil || ''
+    nameTamil: nameTamil || existing.nameTamil || '',
+    descriptionTamil: descriptionTamil || existing.descriptionTamil || '',
+    active: typeof active === 'boolean' ? active : (typeof existing.active === 'boolean' ? existing.active : true)
   };
 
-  if ((updates.category || 'Feed') === 'Feed') {
+  if ((productData.category || 'Feed') === 'Feed') {
     const mainVariant = {
-      sku: updates.sku || '',
-      regularPrice: Number(updates.regularPrice) || 0,
-      salePrice: Number(updates.salePrice) || 0,
-      stockQuantity: Number(updates.stockQuantity) || 0,
-      unit: updates.unit || '',
-      volume: Number(updates.weight || updates.volume) || 0,
-      status: updates.status || 'in_stock'
+      sku: updates.sku || existing.sku || '',
+      regularPrice: Number(updates.regularPrice ?? existing.regularPrice) || 0,
+      salePrice: Number(updates.salePrice ?? existing.salePrice) || 0,
+      stockQuantity: Number(updates.stockQuantity ?? existing.stockQuantity) || 0,
+      unit: updates.unit || existing.unit || '',
+      volume: Number(updates.weight ?? updates.volume ?? existing.weight ?? existing.volume) || 0,
+      status: updates.status || existing.status || 'in_stock'
     };
     let otherVariants = [];
     if (updates.variants && Array.isArray(updates.variants) && updates.variants.length > 0) {
@@ -141,9 +163,11 @@ export async function updateProduct(id, updates) {
         volume: Number(v.volume) || 0,
         status: v.status || 'in_stock',
       }));
+    } else if (existing.variants && Array.isArray(existing.variants) && existing.variants.length > 1) {
+      otherVariants = existing.variants.slice(1);
     }
     productData.variants = [mainVariant, ...otherVariants];
-  } else if ((updates.category || 'Feed') === 'Supplement') {
+  } else if ((productData.category || 'Feed') === 'Supplement') {
     if (updates.variants && Array.isArray(updates.variants) && updates.variants.length > 0) {
       productData.variants = updates.variants.map(v => ({
         ...v,
@@ -153,12 +177,13 @@ export async function updateProduct(id, updates) {
         volume: Number(v.volume) || 0,
         status: v.status || 'in_stock',
       }));
+    } else if (existing.variants && Array.isArray(existing.variants)) {
+      productData.variants = existing.variants;
     } else {
       productData.variants = [];
     }
   }
 
-  const productRef = doc(db, 'products', id);
   await updateDoc(productRef, productData);
   return { id, ...productData };
 }
@@ -181,17 +206,39 @@ export async function getProductById(id) {
   }
 }
 
-export async function deleteProduct(id) {
-  try {
-    console.log('Deleting product with ID:', id);
+// export async function deleteProduct(id) {
+//   try {
+//     console.log('Deleting product with ID:', id);
     
-    const productRef = doc(db, 'products', id);
-    await deleteDoc(productRef);
+//     const productRef = doc(db, 'products', id);
+//     await deleteDoc(productRef);
     
-    console.log('Product deleted successfully');
-    return { success: true, id };
-  } catch (error) {
-    console.error('Error deleting product:', error);
-    throw new Error(`Failed to delete product: ${error.message}`);
+//     console.log('Product deleted successfully');
+//     return { success: true, id };
+//   } catch (error) {
+//     console.error('Error deleting product:', error);
+//     throw new Error(`Failed to delete product: ${error.message}`);
+//   }
+// }
+
+export async function updateProductActiveStatus(id, active) {
+  const productRef = doc(db, 'products', id);
+  await updateDoc(productRef, { active });
+  return true;
+}
+
+export async function updateProductStatus(id, newStatus) {
+  const productRef = doc(db, 'products', id);
+  const docSnap = await getDoc(productRef);
+  if (!docSnap.exists()) {
+    throw new Error('Product not found');
   }
+  const product = docSnap.data();
+  if (!product.variants || !Array.isArray(product.variants) || product.variants.length === 0) {
+    throw new Error('No variants found for this product');
+  }
+  // Update the status of all variants
+  const updatedVariants = product.variants.map(variant => ({ ...variant, status: newStatus }));
+  await updateDoc(productRef, { variants: updatedVariants, updatedAt: Date.now() });
+  return true;
 }

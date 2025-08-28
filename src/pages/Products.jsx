@@ -4,7 +4,7 @@ import { Plus, FilePenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getProducts, updateProduct } from "@/services/productsService";
+import { getProducts, updateProductActiveStatus, updateProductStatus } from "@/services/productsService";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Switch } from "@/components/ui/switch";
@@ -119,9 +119,20 @@ export default function Products() {
     setIsDetailViewOpen(true);
   }, []);
 
+  const handleActiveToggle = useCallback(async (product, newActive) => {
+    try {
+      await updateProductActiveStatus(product.id, newActive);
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, active: newActive } : p));
+      setSelectedProduct(prev => prev && prev.id === product.id ? { ...prev, active: newActive } : prev);
+    } catch (error) {
+      console.error('Failed to update product active status:', error);
+      setError('Failed to update product active status');
+    }
+  }, []);
+
   const handleStatusChange = useCallback(async (product, newStatus) => {
     try {
-      await updateProduct(product.id, { status: newStatus });
+      await updateProductStatus(product.id, newStatus);
       const updatedProducts = products.map(p => 
         p.id === product.id ? { 
           ...p, 
@@ -159,7 +170,7 @@ export default function Products() {
     return (
       <Card 
         key={product.id} 
-        className="overflow-hidden bg-white border border-gray-100 rounded-xl shadow hover:shadow-md transition-transform duration-100 flex flex-col cursor-pointer"
+        className={`overflow-hidden bg-white border border-gray-100 rounded-xl shadow hover:shadow-md transition-transform duration-100 flex flex-col cursor-pointer ${product.active === false ? 'opacity-60 grayscale' : ''}`}
         onClick={handleCardClick}
       >
         <div className="relative flex flex-col items-center p-3 pb-0">
@@ -500,18 +511,30 @@ export default function Products() {
                       {selectedProduct.tags?.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
                     </div>
                   </div>
-                  <div className="border-t pt-4 flex items-center justify-between">
-                    <Label htmlFor="stock-status" className="font-semibold text-gray-800">
-                      Status: {selectedProduct.variants?.[0]?.status === 'in_stock' ? 'In Stock' : 'Out of Stock'}
-                    </Label>
-                    <Switch
-                      id="stock-status"
-                      checked={selectedProduct.variants?.[0]?.status === 'in_stock'}
-                      onCheckedChange={(isChecked) => {
-                        const newStatus = isChecked ? 'in_stock' : 'out_of_stock';
-                        handleStatusChange(selectedProduct, newStatus);
-                      }}
-                    />
+                  <div className="border-t pt-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="stock-status" className="font-semibold text-gray-800">
+                        Status: {selectedProduct.variants?.[0]?.status === 'in_stock' ? 'In Stock' : 'Out of Stock'}
+                      </Label>
+                      <Switch
+                        id="stock-status"
+                        checked={selectedProduct.variants?.[0]?.status === 'in_stock'}
+                        onCheckedChange={(isChecked) => {
+                          const newStatus = isChecked ? 'in_stock' : 'out_of_stock';
+                          handleStatusChange(selectedProduct, newStatus);
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="font-semibold text-gray-800">
+                        {selectedProduct.active === false ? 'Inactive' : 'Active'}
+                      </Label>
+                      <Switch
+                        checked={selectedProduct.active !== false}
+                        onCheckedChange={isChecked => handleActiveToggle(selectedProduct, isChecked)}
+                        title={selectedProduct.active === false ? 'Enable Product' : 'Disable Product'}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

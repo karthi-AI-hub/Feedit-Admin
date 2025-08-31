@@ -7,17 +7,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
+import { logout } from '../services/authService';
 
 export function Header({ sidebarOpen, setSidebarOpen }) {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    // Clear any stored authentication data
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    sessionStorage.clear();
-    
-    // Redirect to login page
+    logout();
     navigate('/login');
   };
 

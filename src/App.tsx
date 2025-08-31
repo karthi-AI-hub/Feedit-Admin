@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import MainLayout from "./layout/MainLayout";
+import PrivateRoute from "./components/PrivateRoute";
 import SplashScreen from "./pages/SplashScreen";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -30,9 +31,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* Splash screen as root */}
           <Route path="/" element={<SplashScreen />} />
-          
           {/* Login and Auth routes */}
           <Route path="/login" element={<Login />} />
           {/* <Route path="/email-sent" element={<EmailSent />} /> */}
@@ -40,17 +39,18 @@ const App = () => (
           {/* <Route path="/set-new-password" element={<SetNewPassword />} /> */}
           {/* <Route path="/password-changed" element={<PasswordChanged />} /> */}
 
-          {/* Main layout routes */}
-          <Route path="/" element={<MainLayout />}>
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="products" element={<Products />} />
-            <Route path="products/new" element={<ProductPage />} />
-            <Route path="products/edit/:id" element={<ProductPage />} />
-            <Route path="orders" element={<Orders />} />
-            <Route path="orders/:id" element={<OrderDetails />} />
-            <Route path="customers" element={<Customers />} />
-            <Route path="banners" element={<Banners />} />
-            <Route path="pincodes" element={<Pincodes />} />
+          <Route element={<PrivateRoute />}>
+            <Route path="/" element={<MainLayout />}>
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="products" element={<Products />} />
+              <Route path="products/new" element={<ProductPage />} />
+              <Route path="products/edit/:id" element={<ProductPage />} />
+              <Route path="orders" element={<Orders />} />
+              <Route path="orders/:id" element={<OrderDetails />} />
+              <Route path="customers" element={<Customers />} />
+              <Route path="banners" element={<Banners />} />
+              <Route path="pincodes" element={<Pincodes />} />
+            </Route>
           </Route>
           
           {/* Catch all route */}

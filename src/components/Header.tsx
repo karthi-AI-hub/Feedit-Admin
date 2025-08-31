@@ -12,8 +12,8 @@ import { logout } from '../services/authService';
 export function Header({ sidebarOpen, setSidebarOpen }) {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 

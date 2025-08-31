@@ -11,9 +11,9 @@ export async function login(email, password) {
   }
 }
 
-export function logout() {
+export async function logout() {
   const auth = getAuth();
-  signOut(auth);
+  await signOut(auth);
 }
 
 export async function isAuthenticated() {

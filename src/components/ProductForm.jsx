@@ -16,8 +16,9 @@ import { DialogFooter } from "@/components/ui/dialog";
 import {
   addProduct,
   updateProduct,
-  // deleteProduct,
+  deleteProductBrochure,
 } from "@/services/productsService";
+import { validateBrochureFile, formatFileSize } from "@/types/brochure";
 
 export default function ProductForm({
   mode = "add",
@@ -49,12 +50,13 @@ export default function ProductForm({
 
   const [productForm, setProductForm] = useState(emptyProductForm);
   const [productImages, setProductImages] = useState([]);
+  const [productBrochure, setProductBrochure] = useState(null);
   const [currentTags, setCurrentTags] = useState([]);
   const [newTag, setNewTag] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const [error, setError] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(null);
 
   const errorRef = useRef(null);
 
@@ -119,6 +121,15 @@ export default function ProductForm({
             } else {
               setProductImages([]);
             }
+            if (initialData.brochureUrl) {
+              setProductBrochure({ 
+                preview: initialData.brochureUrl, 
+                isExisting: true,
+                name: 'Current Product File'
+              });
+            } else {
+              setProductBrochure(null);
+            }
             if (initialData.variants && Array.isArray(initialData.variants)) {
               setVariants(initialData.variants);
             } else {
@@ -128,6 +139,7 @@ export default function ProductForm({
         } else {
           setProductForm(emptyProductForm);
           setProductImages([]);
+          setProductBrochure(null);
           setCurrentTags([]);
           setVariants([]);
         }
@@ -136,8 +148,19 @@ export default function ProductForm({
       }
     };
     loadInitial();
-    return () => { isMounted = false; };
+    return () => { 
+      isMounted = false;
+    };
   }, [initialData, mode]);
+
+
+  useEffect(() => {
+    return () => {
+      if (productBrochure?.preview && !productBrochure?.isExisting) {
+        URL.revokeObjectURL(productBrochure.preview);
+      }
+    };
+  }, [productBrochure]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -253,6 +276,46 @@ export default function ProductForm({
     setProductImages(
       productImages.filter((_, index) => index !== indexToRemove)
     );
+  };
+
+  const handleBrochureUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (productBrochure) {
+      setErrorAndScroll("Only one brochure is allowed. Please remove the current brochure first.");
+      e.target.value = '';
+      return;
+    }
+
+    // Validate the selected file
+    const validation = validateBrochureFile(file);
+    if (!validation.isValid) {
+      setErrorAndScroll(validation.error);
+      e.target.value = '';
+      return;
+    }
+
+    setProductBrochure({
+      file,
+      preview: URL.createObjectURL(file),
+      name: file.name,
+      isExisting: false
+    });
+
+    e.target.value = '';
+  };
+
+  const handleRemoveBrochure = () => {
+    if (productBrochure?.preview && !productBrochure?.isExisting) {
+      URL.revokeObjectURL(productBrochure.preview);
+    }
+    setProductBrochure(null);
+    
+    const fileInput = document.getElementById(`${mode}-productBrochure`);
+    if (fileInput) {
+      fileInput.value = '';
+    }
   };
 
   const handleSave = async (e) => {
@@ -393,21 +456,32 @@ export default function ProductForm({
         v.stockQuantity && String(v.stockQuantity).trim() !== "" && Number(v.stockQuantity) > 0
       );
     }
+    let brochureData = null;
+    if (productBrochure) {
+      if (productBrochure.file) {
+        brochureData = productBrochure.file;
+      } else if (productBrochure.isExisting) {
+        brochureData = productBrochure.preview;
+      }
+    }
     const formData = {
       ...productForm,
       images: productImages.map((img) => img.file || img.preview),
+      brochure: brochureData,
       ...(productForm.category === "Supplement" && filteredVariants.length > 0 && { variants: filteredVariants }),
     };
 
     try {
       let result;
 
+      const progressCallback = (progress) => {
+        setUploadProgress(progress);
+      };
+
       if (mode === "add") {
-        result = await addProduct(formData);
-        console.log("Product added successfully:", result);
+        result = await addProduct(formData, progressCallback);
       } else {
-        result = await updateProduct(initialData.id, formData);
-        console.log("Product updated successfully:", formData);
+        result = await updateProduct(initialData.id, formData, progressCallback);
       }
 
       // Success callback
@@ -447,6 +521,7 @@ export default function ProductForm({
       }
     } finally {
       setIsLoading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -500,19 +575,48 @@ export default function ProductForm({
   // };
 
   // Common loading overlay for all loading states
-  const isLoadingOverlay = isInitialLoading || isLoading || isDeleting;
+  const isLoadingOverlay = isInitialLoading || isLoading;
   let loadingMessage = "Loading...";
   if (isInitialLoading) loadingMessage = "Loading Product Data...";
   else if (isLoading) loadingMessage = mode === "add" ? "Adding Product..." : "Updating Product...";
-  else if (isDeleting) loadingMessage = "Deleting Product...";
+  // else if (isDeleting) loadingMessage = "Deleting Product...";
 
   return (
     <>
       {isLoadingOverlay && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80">
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center max-w-md mx-auto p-6">
             <div className="w-12 h-12 border-4 border-green-700 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <span className="text-green-800 font-semibold text-lg">{loadingMessage}</span>
+            <span className="text-green-800 font-semibold text-lg mb-2">{loadingMessage}</span>
+            
+            {uploadProgress && (
+              <div className="w-full">
+                <div className="text-sm text-gray-600 mb-2 text-center">
+                  {uploadProgress.message || `${uploadProgress.stage}: Processing...`}
+                </div>
+                
+                {uploadProgress.completed && uploadProgress.total && (
+                  <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                    <div 
+                      className="bg-green-600 h-2 rounded-full transition-all duration-300" 
+                      style={{ width: `${(uploadProgress.completed / uploadProgress.total) * 100}%` }}
+                    ></div>
+                  </div>
+                )}
+                
+                {uploadProgress.currentFile && (
+                  <div className="text-xs text-gray-500 text-center truncate">
+                    {uploadProgress.currentFile}
+                  </div>
+                )}
+                
+                {uploadProgress.completed && uploadProgress.total && (
+                  <div className="text-xs text-green-600 text-center mt-1">
+                    {uploadProgress.completed} of {uploadProgress.total} files uploaded
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -849,6 +953,165 @@ export default function ProductForm({
             </div>
           </div>
         </div>
+
+        {/* Product Attachment */}
+        <div className="grid grid-cols-1 gap-6">
+          <div className="space-y-2">
+            <Label htmlFor={`${mode}-productBrochure`} className="text-sm font-medium text-gray-700 flex items-center gap-2">
+              📄 Product Brochure
+              <span className="text-xs text-gray-500 font-normal">
+                - Optional attachment
+              </span>
+            </Label>
+            <div className="space-y-4">
+              {!productBrochure ? (
+                <div className="space-y-3">
+                  {/* Status indicator for no brochure */}
+                  <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        📄 NO BROCHURE
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {mode === "edit" ? "No brochure is currently stored for this product" : "No brochure selected for this product"}
+                    </p>
+                  </div>
+
+                  {/* Upload section */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      id={`${mode}-productBrochure`}
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg,.doc,.docx,.txt"
+                      multiple={false}
+                      onChange={handleBrochureUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        document.getElementById(`${mode}-productBrochure`).click()
+                      }
+                      disabled={isLoading}
+                      className="border-green-200 hover:bg-green-50"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {isLoading ? "Loading..." : "📁 Select File from Gallery"}
+                    </Button>
+                    <span className="text-sm text-gray-500">
+                      Max size: 10MB
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-600 bg-amber-50 border border-amber-200 p-3 rounded">
+                  <div className="flex items-center gap-2">
+                    <span className="text-amber-600">⚠️</span>
+                    <span>To upload a new brochure, please remove the current one first.</span>
+                  </div>
+                  <p className="text-xs text-amber-600 mt-1">
+                    Only one brochure is allowed per product.
+                  </p>
+                </div>
+              )}
+              {productBrochure && (
+                <div className={`border rounded-md p-4 ${
+                  productBrochure.isExisting 
+                    ? 'bg-blue-50 border-blue-200' 
+                    : 'bg-green-50 border-green-200'
+                }`}>
+                  {/* Status Indicator */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      productBrochure.isExisting 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {productBrochure.isExisting ? '� DATABASE ATTACHMENT' : '📁 NEWLY SELECTED'}
+                    </div>
+                    {!productBrochure.isExisting && (
+                      <div className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                        ⏳ PENDING UPLOAD
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                        productBrochure.isExisting 
+                          ? 'bg-blue-100 border-2 border-blue-300' 
+                          : 'bg-green-100 border-2 border-green-300'
+                      }`}>
+                        <span className={`text-xs font-bold ${
+                          productBrochure.isExisting ? 'text-blue-700' : 'text-green-700'
+                        }`}>
+                          PDF
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">
+                          {productBrochure.name || 'Product Brochure.pdf'}
+                        </p>
+                        
+                        {productBrochure.isExisting ? (
+                          <div className="space-y-1">
+                            <p className="text-xs text-blue-600 font-medium">
+                              ✓ Currently stored in database
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              This brochure will be kept unless you remove it
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <p className="text-xs text-green-600 font-medium">
+                              ↗ Selected from your computer
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Will be uploaded when you save the product
+                            </p>
+                            {productBrochure.file && (
+                              <p className="text-xs text-blue-600">
+                                📊 Size: {formatFileSize(productBrochure.file.size)}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {productBrochure.isExisting && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          className="text-blue-600 hover:text-blue-800 border border-blue-200"
+                          onClick={() => window.open(productBrochure.preview, '_blank')}
+                        >
+                          👁 View
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        type="button"
+                        className="text-red-500 hover:text-red-700 border border-red-200"
+                        onClick={handleRemoveBrochure}
+                        title="Remove brochure"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Variants Section for Supplement products */}
@@ -1043,16 +1306,16 @@ export default function ProductForm({
             variant="outline"
             type="button"
             onClick={onCancel}
-            disabled={isLoading || isDeleting}
+            disabled={isLoading}
           >
             Cancel
           </Button>
           <Button
             type="submit"
-            disabled={isLoading || isDeleting || !productForm.name.trim()}
+            disabled={isLoading || !productForm.name.trim()}
             style={{
               backgroundColor:
-                isLoading || isDeleting ? "#9CA3AF" : "#007539",
+                isLoading ? "#9CA3AF" : "#007539",
             }}
           >
             {isLoading ? (

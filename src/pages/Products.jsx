@@ -536,6 +536,44 @@ export default function Products() {
                       />
                     </div>
                   </div>
+                  <div className="border-t pt-4">
+                    <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                      📄 Product Brochure
+                    </h4>
+                    {selectedProduct.brochureUrl ? (
+                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            ✓ BROCHURE AVAILABLE
+                          </div>
+                        </div>
+                        <p className="text-xs text-blue-600 mb-3">
+                          This product has a brochure stored in the database
+                        </p>
+                        <Button
+                          variant="outline"
+                          onClick={() => window.open(selectedProduct.brochureUrl, '_blank')}
+                          className="w-full border-blue-300 hover:bg-blue-100"
+                        >
+                          <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                          📥 Download Brochure (PDF)
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            📄 NO BROCHURE
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          No brochure is available for this product
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               <DialogFooter>

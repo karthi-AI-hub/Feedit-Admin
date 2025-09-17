@@ -54,10 +54,12 @@ export default function Products() {
     try {
       setLoading(true);
       setError(null);
-      const data = await getProducts();
-      // console.log('Products fetched in component:', data);
-      // console.log('First product details:', data[0]);
-      setProducts(data);
+      const result = await getProducts();
+      if (result.success) {
+        setProducts(result.data || []);
+      } else {
+        setError('Failed to fetch products');
+      }
     } catch (error) {
       console.error('Error fetching products in component:', error);
       setError('Failed to fetch products');

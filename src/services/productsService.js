@@ -426,9 +426,15 @@ export async function updateProduct(id, updates, onProgress = null) {
 }
 
 export async function getProducts() {
-  const productsRef = collection(db, 'products');
-  const snapshot = await getDocs(productsRef);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  try {
+    const productsRef = collection(db, 'products');
+    const snapshot = await getDocs(productsRef);
+    const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return { success: true, data: products };
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    return { success: false, error: error.message };
+  }
 }
 
 export async function getProductById(id) {

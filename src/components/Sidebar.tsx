@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { logout } from '../services/authService';
-import { LayoutDashboard, Package, Users, List, FileWarning, Image } from 'lucide-react';
+import { LayoutDashboard, Package, Users, List, FileWarning, Image, Coins } from 'lucide-react';
 
 const menu = [
   { label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
@@ -9,6 +9,7 @@ const menu = [
   { label: 'Orders', icon: List, to: '/orders' },
   { label: 'Banners', icon: Image, to: '/banners' },
   { label: 'Pincodes', icon: FileWarning, to: '/pincodes' },
+  { label: 'Rewards', icon: Coins, to: '/rewards' },
 ];
 
 export default function Sidebar({ onNavigate }) {

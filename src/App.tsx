@@ -17,6 +17,7 @@ import Customers from "./pages/Customers";
 import Banners from "./pages/Banners";
 import NotFound from "./pages/NotFound";
 import Pincodes from "./pages/Pincodes";
+import PointsProducts from "./pages/PointsProducts";
 // import EmailSent from "./pages/EmailSent";
 // import SetNewPassword from "./pages/SetNewPassword";
 // import ForgotPassword from "./pages/ForgotPassword";
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="customers" element={<Customers />} />
               <Route path="banners" element={<Banners />} />
               <Route path="pincodes" element={<Pincodes />} />
+              <Route path="rewards" element={<PointsProducts />} />
             </Route>
           </Route>
           

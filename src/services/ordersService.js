@@ -55,20 +55,38 @@ export const addOrderStatusUpdateToRealtimeDB = async (orderId, finalStatus, num
     
     await set(orderRef, {
       documentId: orderId,
-      // previousStatus: previousStatus,
       status: finalStatus,
       number: number,
-      // updatedAt: currentTime,
-      confirmedAt: finalStatus === 'CONFIRMED' ? currentTime : null,
-      deliveredAt: finalStatus === 'DELIVERED' ? currentTime : null,
-      cancelledAt: finalStatus === 'CANCELLED' ? currentTime : null
+      updatedAt: currentTime,
+      // Payment statuses
+      paymentPendingAt: finalStatus === 'PAYMENT_PENDING' ? currentTime : null,
+      paymentSuccessAt: finalStatus === 'PAYMENT_SUCCESS' ? currentTime : null,
+      paymentFailedAt: finalStatus === 'PAYMENT_FAILED' ? currentTime : null,
+      // Order statuses
+      orderPlacedAt: finalStatus === 'PLACED' ? currentTime : null,
+      orderConfirmedAt: finalStatus === 'CONFIRMED' ? currentTime : null,
+      outForDeliveryAt: finalStatus === 'OUT_FOR_DELIVERY' ? currentTime : null,
+      orderDeliveredAt: finalStatus === 'DELIVERED' ? currentTime : null,
+      orderCancelledAt: finalStatus === 'CANCELLED' ? currentTime : null,
+      // Return/Refund statuses
+      returnRequestedAt: finalStatus === 'RETURN_REQUESTED' ? currentTime : null,
+      returnInitiatedAt: finalStatus === 'RETURN_INITIATED' ? currentTime : null,
+      returnRejectedAt: finalStatus === 'RETURN_REJECTED' ? currentTime : null,
+      outForPickupAt: finalStatus === 'OUT_FOR_PICKUP' ? currentTime : null,
+      returnPickedAt: finalStatus === 'RETURN_PICKED' ? currentTime : null,
+      refundInitiatedAt: finalStatus === 'REFUND_INITIATED' ? currentTime : null,
+      refundCompletedAt: finalStatus === 'REFUND_COMPLETED' ? currentTime : null,
+      // Additional statuses
+      disputeRaisedAt: finalStatus === 'DISPUTE_RAISED' ? currentTime : null,
+      disputeResolvedAt: finalStatus === 'DISPUTE_RESOLVED' ? currentTime : null
     });
     
-    // console.log('Order status update added to realtime database successfully');
+    // console.log(`Order status update added to realtime database: ${finalStatus} for order ${orderId}`);
     return true;
   } catch (error) {
     console.error('Failed to add order status to realtime database:', error);
-    throw error;
+    // Don't throw error to prevent breaking the main flow
+    return false;
   }
 };
 
@@ -132,12 +150,40 @@ export const updateOrderStatusAPI = async (orderId, newStatus, number, additiona
   const now = Date.now(); // Use milliseconds since epoch for consistency with Realtime DB
 
   // Add appropriate timestamps based on status change
-  if (newStatus === 'CONFIRMED') {
-    firestoreUpdates.orderConfirmed = now;
+  if (newStatus === 'PAYMENT_PENDING') {
+    firestoreUpdates.paymentPendingAt = now;
+  } else if (newStatus === 'PAYMENT_SUCCESS') {
+    firestoreUpdates.paymentSuccessAt = now;
+  } else if (newStatus === 'PAYMENT_FAILED') {
+    firestoreUpdates.paymentFailedAt = now;
+  } else if (newStatus === 'PLACED') {
+    firestoreUpdates.orderPlacedAt = now;
+  } else if (newStatus === 'CONFIRMED') {
+    firestoreUpdates.orderConfirmedAt = now;
+  } else if (newStatus === 'OUT_FOR_DELIVERY') {
+    firestoreUpdates.outForDeliveryAt = now;
   } else if (newStatus === 'DELIVERED') {
-    firestoreUpdates.orderDelivered = now;
+    firestoreUpdates.orderDeliveredAt = now;
   } else if (newStatus === 'CANCELLED') {
-    firestoreUpdates.orderCancelled = now;
+    firestoreUpdates.orderCancelledAt = now;
+  } else if (newStatus === 'RETURN_REQUESTED') {
+    firestoreUpdates.returnRequestedAt = now;
+  } else if (newStatus === 'RETURN_INITIATED') {
+    firestoreUpdates.returnInitiatedAt = now;
+  } else if (newStatus === 'RETURN_REJECTED') {
+    firestoreUpdates.returnRejectedAt = now;
+  } else if (newStatus === 'OUT_FOR_PICKUP') {
+    firestoreUpdates.outForPickupAt = now;
+  } else if (newStatus === 'RETURN_PICKED') {
+    firestoreUpdates.returnPickedAt = now;
+  } else if (newStatus === 'REFUND_INITIATED') {
+    firestoreUpdates.refundInitiatedAt = now;
+  } else if (newStatus === 'REFUND_COMPLETED') {
+    firestoreUpdates.refundCompletedAt = now;
+  } else if (newStatus === 'DISPUTE_RAISED') {
+    firestoreUpdates.disputeRaisedAt = now;
+  } else if (newStatus === 'DISPUTE_RESOLVED') {
+    firestoreUpdates.disputeResolvedAt = now;
   }
 
   // Always update Firestore first
@@ -148,12 +194,10 @@ export const updateOrderStatusAPI = async (orderId, newStatus, number, additiona
     throw error;
   }
 
-  // Then update Realtime DB, but do not throw if it fails
   try {
     await addOrderStatusUpdateToRealtimeDB(orderId, newStatus, number);
   } catch (error) {
     console.error('Order status updated in Firestore, but failed in Realtime DB:', error);
-    // Optionally: return a warning or log for admin reconciliation
     return { success: true, data: firestoreUpdates, warning: 'Realtime DB update failed' };
   }
 

@@ -16,6 +16,10 @@ const OrderDetails = () => {
   const [status, setStatus] = useState('');
   const [statusError, setStatusError] = useState('');
   const [expectedDeliveryInput, setExpectedDeliveryInput] = useState('');
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundScreenshot, setRefundScreenshot] = useState(null);
+  const [refundTransactionId, setRefundTransactionId] = useState('');
+  const [refundSubmitting, setRefundSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -24,7 +28,7 @@ const OrderDetails = () => {
       try {
         const found = await fetchOrderByIdAPI(id);
         setOrder(found);
-        setStatus(found?.orderStatus || '');
+        setStatus('');
       } catch (err) {
         setError('Failed to fetch order');
       } finally {
@@ -34,15 +38,36 @@ const OrderDetails = () => {
     fetchOrder();
   }, [id]);
 
+  useEffect(() => {
+    if (order && !status) {
+      setStatus('');
+    }
+  }, [order]);
+
   const handleStatusUpdate = async () => {
-    if (!order || updating) return; // Prevent duplicate submissions
+    if (!order || updating) return; 
+    
+    if (!status || status === order.orderStatus) {
+      setStatusError('Please select a different status to update.');
+      return;
+    }
+    
+    if (status === 'CANCELLED' && order?.paymentStatus === 1) {
+      setShowRefundModal(true);
+      return;
+    }
+    
+    if (status === 'REFUND_COMPLETED' && !order.refund) {
+      setShowRefundModal(true);
+      return;
+    }
+    
     setUpdating(true);
     setStatusError('');
     try {
-      // Prepare additional data for expected delivery
       let additionalData = {};
       
-      if (status === 'CONFIRMED') {
+      if (status === 'ORDER_CONFIRMED') {
         if (expectedDeliveryInput) {
           additionalData.expectedDelivery = new Date(expectedDeliveryInput).getTime();
         } else {
@@ -69,6 +94,111 @@ const OrderDetails = () => {
     } finally {
       setUpdating(false);
     }
+  };
+
+  const handleRefundSubmit = async () => {
+    if (!refundScreenshot || !refundTransactionId.trim()) {
+      setStatusError('Please provide both refund screenshot and transaction ID.');
+      return;
+    }
+
+    setRefundSubmitting(true);
+    setStatusError('');
+    
+    try {
+      // Upload refund screenshot to Firebase Storage
+      const storage = (await import('../lib/firebase')).storage;
+      const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+      
+      const refundImageRef = ref(storage, `refund-screenshots/${order.id}-${Date.now()}`);
+      const snapshot = await uploadBytes(refundImageRef, refundScreenshot);
+      const refundScreenshotUrl = await getDownloadURL(snapshot.ref);
+      
+      // Prepare refund data
+      const refundData = {
+        refund: {
+          transactionId: refundTransactionId,
+          screenshot: refundScreenshotUrl,
+          refundedAt: Date.now(),
+          refundedBy: 'admin' // You can get this from auth context
+        }
+      };
+      
+      let targetStatus = status;
+      if (status === 'CANCELLED') {
+        targetStatus = 'CANCELLED';
+      } else if (status === 'REFUND_COMPLETED') {
+        targetStatus = 'REFUND_COMPLETED';
+      }
+      
+      // Update order status with refund data
+      const result = await updateOrderStatusAPI(
+        order.id, 
+        targetStatus,
+        order.number,
+        refundData
+      );
+      
+      // Update local state
+      setOrder({ ...order, ...result.data });
+      setStatus('');
+      setShowRefundModal(false);
+      setRefundScreenshot(null);
+      setRefundTransactionId('');
+      
+    } catch (e) {
+      console.error('Failed to process refund:', e);
+      setStatusError('Failed to process refund. Please try again.');
+    } finally {
+      setRefundSubmitting(false);
+    }
+  };
+
+  const handleRefundModalClose = () => {
+    setShowRefundModal(false);
+    setRefundScreenshot(null);
+    setRefundTransactionId('');
+    setStatus(''); // Reset status selection
+    setStatusError('');
+  };
+
+  const isPrepaidOrder = () => {
+    return order?.paymentStatus === 1;
+  };
+
+  // Helper function to format timestamps properly
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return '-';
+    
+    let date;
+    
+    // Handle Firestore Timestamp objects
+    if (typeof timestamp === 'object' && timestamp.seconds) {
+      date = new Date(timestamp.seconds * 1000);
+    }
+    // Handle numeric timestamps
+    else if (!isNaN(timestamp) && Number(timestamp) > 0) {
+      date = new Date(Number(timestamp));
+    }
+    // Invalid or missing timestamp
+    else {
+      return '-';
+    }
+    
+    // Check if date is valid and not the Unix epoch start
+    if (isNaN(date.getTime()) || date.getFullYear() < 2020) {
+      return '-';
+    }
+    
+    return date.toLocaleDateString('en-GB', { 
+      day: '2-digit', 
+      month: 'short', 
+      year: 'numeric' 
+    }) + ', ' + date.toLocaleTimeString('en-US', {
+      hour: '2-digit', 
+      minute: '2-digit', 
+      hour12: true
+    });
   };
 
   if (loading) return (
@@ -140,8 +270,19 @@ const OrderDetails = () => {
               <div>
                 <div className="flex items-center gap-3 mb-1">
                   <span className="text-lg font-bold text-gray-900">Orders ID: #{order.id.slice(-6)}</span>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                    {status || order.orderStatus || 'Pending'}
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    order.orderStatus?.toLowerCase() === 'placed' ? 'bg-blue-100 text-blue-800' :
+                    order.orderStatus?.toLowerCase() === 'confirmed' ? 'bg-green-100 text-green-800' :
+                    order.orderStatus?.toLowerCase() === 'out_for_delivery' ? 'bg-yellow-100 text-yellow-800' :
+                    order.orderStatus?.toLowerCase() === 'delivered' ? 'bg-green-100 text-green-800' :
+                    order.orderStatus?.toLowerCase() === 'cancelled' ? 'bg-red-100 text-red-800' :
+                    order.orderStatus?.toLowerCase() === 'return_requested' ? 'bg-orange-100 text-orange-800' :
+                    order.orderStatus?.toLowerCase() === 'return_initiated' ? 'bg-orange-100 text-orange-800' :
+                    order.orderStatus?.toLowerCase() === 'return_rejected' ? 'bg-red-100 text-red-800' :
+                    order.orderStatus?.toLowerCase() === 'refund_completed' ? 'bg-purple-100 text-purple-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {order.orderStatus || 'Pending'}
                   </span>
                 </div>
                 <div className="flex items-center gap-1 text-sm text-gray-500">
@@ -176,27 +317,53 @@ const OrderDetails = () => {
             </div>
             <div className="flex items-center gap-2">
               <select
-                value={status}
+                value={status || ''}
                 onChange={e => setStatus(e.target.value)}
                 className="border rounded-lg px-3 py-2 text-sm bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
                 disabled={updating}
               >
-                {/* Show current status as default */}
-                <option value={order.orderStatus}>{order.orderStatus || 'Current Status'}</option>
-                {/* Show valid next statuses based on current order status */}
+                <option value="" disabled>
+                  {order.orderStatus ? `Current: ${order.orderStatus}` : 'Select Action'}
+                </option>
+                
                 {order.orderStatus?.toLowerCase() === 'placed' && (
                   <>
                     <option value="CONFIRMED">Confirm Order</option>
                     <option value="CANCELLED">Cancel Order</option>
                   </>
                 )}
+                
                 {order.orderStatus?.toLowerCase() === 'confirmed' && (
                   <>
-                    <option value="DELIVERED">Mark as Delivered</option>
+                    <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
                     <option value="CANCELLED">Cancel Order</option>
                   </>
                 )}
-                {/* If order is already delivered or cancelled, no further changes allowed */}
+                
+                {order.orderStatus?.toLowerCase() === 'out_for_delivery' && (
+                  <option value="DELIVERED">Mark as Delivered</option>
+                )}
+                
+                {/* RETURN_REQUESTED is set by client app when customer requests return */}
+                {order.orderStatus?.toLowerCase() === 'return_requested' && (
+                  <>
+                    <option value="RETURN_INITIATED">Approve Return Request</option>
+                    <option value="RETURN_REJECTED">Reject Return Request</option>
+                  </>
+                )}
+                
+                {order.orderStatus?.toLowerCase() === 'return_initiated' && (
+                  <option value="OUT_FOR_PICKUP">Out for Pickup</option>
+                )}
+                
+                {order.orderStatus?.toLowerCase() === 'out_for_pickup' && (
+                  <option value="REFUND_INITIATED">Initiate Refund</option>
+                )}
+                
+                {order.orderStatus?.toLowerCase() === 'refund_initiated' && (
+                  <option value="REFUND_COMPLETED">Complete Refund</option>
+                )}
+                
               </select>
               {/* Date Picker for Expected Delivery - Only show when confirming order */}
               {status === 'CONFIRMED' && (
@@ -217,8 +384,8 @@ const OrderDetails = () => {
               </button> */}
               <button
                 onClick={handleStatusUpdate}
-                disabled={updating || status === order.orderStatus}
-                className="bg-green-700 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
+                disabled={updating || !status || status === order.orderStatus}
+                className="bg-green-700 text-white px-4 py-2 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {updating ? 'Updating...' : 'Save'}
               </button>
@@ -266,6 +433,15 @@ const OrderDetails = () => {
             <div className="space-y-2 text-sm">
               <div><span className="font-medium">Shipping:</span> {order.shippingMethod ?? 'Standard Delivery'}</div>
               <div><span className="font-medium">Payment Method:</span> {order.paymentMethod ?? 'Cash on Delivery'}</div>
+              <div><span className="font-medium">Payment Type:</span> 
+                <span className={`ml-1 px-2 py-1 rounded text-xs font-medium ${
+                  !isPrepaidOrder() 
+                    ? 'bg-blue-100 text-blue-800' 
+                    : 'bg-green-100 text-green-800'
+                }`}>
+                  {!isPrepaidOrder() ? 'Cash on Delivery' : 'Prepaid'}
+                </span>
+              </div>
               <div><span className="font-medium">Status:</span> {status || order.orderStatus}</div>
             </div>
             {/* <button className="w-full mt-4 bg-green-700 text-white py-2 rounded text-sm"
@@ -322,6 +498,36 @@ const OrderDetails = () => {
               <div>Business name: {order.address ? `${order.address.firstName || ''} ${order.address.lastName || ''}`.trim() : '-'}</div>
               <div>Phone: {order.address?.phoneNumber ?? order.address?.phone ?? '-'}</div>
             </div>
+            
+            {/* Refund Information - Show when order is cancelled with refund data */}
+            {(order.orderStatus?.toLowerCase() === 'cancelled' || order.orderStatus?.toLowerCase() === 'refund_completed') && order.refund && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <h4 className="text-sm font-semibold text-red-800 mb-2">Refund Information</h4>
+                <div className="space-y-2 text-sm text-red-700">
+                  <div>
+                    <span className="font-medium">Transaction ID:</span> {order.refund.transactionId}
+                  </div>
+                  <div>
+                    <span className="font-medium">Refunded On:</span>{' '}
+                    {formatTimestamp(order.refund.refundedAt)}
+                  </div>
+                  <div>
+                    <span className="font-medium">Refunded By:</span> {order.refund.refundedBy || 'Admin'}
+                  </div>
+                  {order.refund.screenshot && (
+                    <div>
+                      <span className="font-medium">Screenshot:</span>
+                      <button
+                        onClick={() => window.open(order.refund.screenshot, '_blank')}
+                        className="ml-2 text-blue-600 hover:text-blue-800 underline"
+                      >
+                        View Screenshot
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Order Progress - Right Side */}
@@ -338,142 +544,161 @@ const OrderDetails = () => {
             
             {/* Progress Timeline */}
             <div className="relative">
-              <div className="flex items-center justify-between">
-                {/* Order Created */}
-                <div className="flex flex-col items-center flex-1">
-                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mb-2">
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+              {/* Vertical line background */}
+              <div className="absolute left-4 top-8 bottom-8 w-0.5 bg-gray-200"></div>
+              
+              <div className="space-y-6 relative">
+                {/* Order Placed */}
+                <div className="flex items-center gap-4 relative">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center z-10 ${
+                    ['placed', 'confirmed', 'out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase()) 
+                      ? 'bg-green-500' : 'bg-gray-300'
+                  }`}>
+                    <svg className={`w-4 h-4 ${
+                      ['placed', 'confirmed', 'out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
+                        ? 'text-white' : 'text-gray-500'
+                    }`} fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <div className="text-xs font-medium text-center">Order Created</div>
-                  <div className="text-xs text-gray-500 text-center">
-                    {order.orderDate
-                      ? (typeof order.orderDate === 'object' && order.orderDate.seconds
-                          ? new Date(order.orderDate.seconds * 1000).toLocaleDateString('en-GB', { 
-                              day: '2-digit', 
-                              month: 'short', 
-                              year: 'numeric' 
-                            }) + ', ' + new Date(order.orderDate.seconds * 1000).toLocaleTimeString('en-US', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              hour12: true
-                            })
-                          : !isNaN(order.orderDate)
-                            ? new Date(Number(order.orderDate)).toLocaleDateString('en-GB', { 
-                                day: '2-digit', 
-                                month: 'short', 
-                                year: 'numeric' 
-                              }) + ', ' + new Date(Number(order.orderDate)).toLocaleTimeString('en-US', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: true
-                              })
-                            : order.orderDate)
-                      : '-'}
+                  {/* Progress line to next step */}
+                  <div className={`absolute left-4 top-8 w-0.5 h-6 ${
+                    ['confirmed', 'out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
+                      ? 'bg-green-500' : 'bg-gray-200'
+                  }`}></div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Order Placed</div>
+                    <div className="text-xs text-gray-500">
+                      {formatTimestamp(order.orderPlacedAt || order.orderDate)}
+                    </div>
                   </div>
                 </div>
-
-                {/* Progress Line */}
-                <div className={`flex-1 h-0.5 mx-4 ${
-                  order.orderStatus?.toLowerCase() === 'confirmed' || order.orderStatus?.toLowerCase() === 'delivered' 
-                    ? 'bg-green-500' 
-                    : 'bg-gray-300'
-                }`}></div>
 
                 {/* Order Confirmed */}
-                <div className="flex flex-col items-center flex-1">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
-                    order.orderStatus?.toLowerCase() === 'confirmed' || order.orderStatus?.toLowerCase() === 'delivered' 
-                      ? 'bg-green-500' 
-                      : 'bg-gray-300'
+                <div className="flex items-center gap-4 relative">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center z-10 ${
+                    ['confirmed', 'out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
+                      ? 'bg-green-500' : 'bg-gray-300'
                   }`}>
                     <svg className={`w-4 h-4 ${
-                      order.orderStatus?.toLowerCase() === 'confirmed' || order.orderStatus?.toLowerCase() === 'delivered' 
-                        ? 'text-white' 
-                        : 'text-gray-500'
+                      ['confirmed', 'out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
+                        ? 'text-white' : 'text-gray-500'
                     }`} fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <div className="text-xs font-medium text-center">Order Confirmed</div>
-                  <div className="text-xs text-gray-500 text-center">
-                    {order.orderConfirmed
-                      ? (typeof order.orderConfirmed === 'object' && order.orderConfirmed.seconds
-                          ? new Date(order.orderConfirmed.seconds * 1000).toLocaleDateString('en-GB', { 
-                              day: '2-digit', 
-                              month: 'short', 
-                              year: 'numeric' 
-                            }) + ', ' + new Date(order.orderConfirmed.seconds * 1000).toLocaleTimeString('en-US', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              hour12: true
-                            })
-                          : !isNaN(order.orderConfirmed)
-                            ? new Date(Number(order.orderConfirmed)).toLocaleDateString('en-GB', { 
-                                day: '2-digit', 
-                                month: 'short', 
-                                year: 'numeric' 
-                              }) + ', ' + new Date(Number(order.orderConfirmed)).toLocaleTimeString('en-US', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: true
-                              })
-                            : order.orderConfirmed)
-                      : '-'}
+                  {/* Progress line to next step */}
+                  <div className={`absolute left-4 top-8 w-0.5 h-6 ${
+                    ['out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
+                      ? 'bg-green-500' : 'bg-gray-200'
+                  }`}></div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Order Confirmed</div>
+                    <div className="text-xs text-gray-500">
+                      {formatTimestamp(order.orderConfirmedAt)}
+                    </div>
                   </div>
                 </div>
 
-                {/* Progress Line */}
-                <div className={`flex-1 h-0.5 mx-4 ${
-                  order.orderStatus.toLowerCase() === 'delivered' ? 'bg-green-500' : 'bg-gray-300'
-                }`}></div>
-
-                {/* Order Delivered */}
-                <div className="flex flex-col items-center flex-1">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
-                    order.orderStatus.toLowerCase() === 'delivered' ? 'bg-green-500' : 'bg-gray-300'
+                {/* Out for Delivery */}
+                <div className="flex items-center gap-4 relative">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center z-10 ${
+                    ['out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
+                      ? 'bg-green-500' : 'bg-gray-300'
                   }`}>
                     <svg className={`w-4 h-4 ${
-                      order.orderStatus.toLowerCase() === 'delivered' ? 'text-white' : 'text-gray-500'
+                      ['out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
+                        ? 'text-white' : 'text-gray-500'
                     }`} fill="currentColor" viewBox="0 0 20 20">
-                      {order.orderStatus.toLowerCase() === 'delivered' ? (
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      ) : (
-                        <>
-                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                        </>
-                      )}
+                      <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                      <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707L16 7.586A1 1 0 0015.414 7H14z" />
                     </svg>
                   </div>
-                  <div className="text-xs font-medium text-center">Order Delivered</div>
-                  <div className="text-xs text-gray-500 text-center">
-                    {order.orderDelivered
-                      ? (typeof order.orderDelivered === 'object' && order.orderDelivered.seconds
-                          ? new Date(order.orderDelivered.seconds * 1000).toLocaleDateString('en-GB', { 
-                              day: '2-digit', 
-                              month: 'short', 
-                              year: 'numeric' 
-                            }) + ', ' + new Date(order.orderDelivered.seconds * 1000).toLocaleTimeString('en-US', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              hour12: true
-                            })
-                          : !isNaN(order.orderDelivered)
-                            ? new Date(Number(order.orderDelivered)).toLocaleDateString('en-GB', { 
-                                day: '2-digit', 
-                                month: 'short', 
-                                year: 'numeric' 
-                              }) + ', ' + new Date(Number(order.orderDelivered)).toLocaleTimeString('en-US', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: true
-                              })
-                            : order.orderDelivered)
-                      : '-'}
+                  {/* Progress line to next step */}
+                  <div className={`absolute left-4 top-8 w-0.5 h-6 ${
+                    order.orderStatus?.toLowerCase() === 'delivered'
+                      ? 'bg-green-500' : 'bg-gray-200'
+                  }`}></div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Out for Delivery</div>
+                    <div className="text-xs text-gray-500">
+                      {formatTimestamp(order.outForDeliveryAt)}
+                    </div>
                   </div>
                 </div>
+
+                {/* Order Delivered */}
+                <div className="flex items-center gap-4 relative">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center z-10 ${
+                    order.orderStatus?.toLowerCase() === 'delivered' ? 'bg-green-500' : 'bg-gray-300'
+                  }`}>
+                    <svg className={`w-4 h-4 ${
+                      order.orderStatus?.toLowerCase() === 'delivered' ? 'text-white' : 'text-gray-500'
+                    }`} fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Order Delivered</div>
+                    <div className="text-xs text-gray-500">
+                      {formatTimestamp(order.orderDeliveredAt)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Return/Refund Flow - Show only if applicable */}
+                {['return_requested', 'return_initiated', 'return_rejected', 'out_for_pickup', 'refund_initiated', 'refund_completed'].includes(order.orderStatus?.toLowerCase()) && (
+                  <>
+                    <div className="border-t pt-6 mt-4 relative">
+                      {/* Return section vertical line */}
+                      <div className="absolute left-3 top-12 bottom-0 w-0.5 bg-orange-200"></div>
+                      
+                      <div className="text-sm font-medium text-orange-600 mb-4">Return/Refund Process</div>
+                      
+                      {/* Return Requested */}
+                      <div className="flex items-center gap-4 mb-4 relative">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center z-10 ${
+                          ['return_requested', 'return_initiated', 'out_for_pickup', 'refund_initiated', 'refund_completed'].includes(order.orderStatus?.toLowerCase())
+                            ? 'bg-orange-500' : 'bg-gray-300'
+                        }`}>
+                          <svg className={`w-3 h-3 ${
+                            ['return_requested', 'return_initiated', 'out_for_pickup', 'refund_initiated', 'refund_completed'].includes(order.orderStatus?.toLowerCase())
+                              ? 'text-white' : 'text-gray-500'
+                          }`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M9 15l3-3m0 0l3 3m-3-3v12a6 6 0 01-6-6V9h.003A6 6 0 016 3a6 6 0 016 6v6z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        {/* Progress line to next step */}
+                        {order.orderStatus?.toLowerCase() === 'refund_completed' && (
+                          <div className="absolute left-3 top-6 w-0.5 h-4 bg-orange-500"></div>
+                        )}
+                        <div className="flex-1">
+                          <div className="text-xs font-medium">Return Requested</div>
+                          <div className="text-xs text-gray-500">
+                            {formatTimestamp(order.returnRequestedAt)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Refund Completed */}
+                      {order.orderStatus?.toLowerCase() === 'refund_completed' && (
+                        <div className="flex items-center gap-4 relative">
+                          <div className="w-6 h-6 rounded-full bg-teal-500 flex items-center justify-center z-10">
+                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-xs font-medium">Refund Completed</div>
+                            <div className="text-xs text-gray-500">
+                              {formatTimestamp(order.refundCompletedAt)}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -557,6 +782,121 @@ const OrderDetails = () => {
         {statusError && (
           <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {statusError}
+          </div>
+        )}
+
+        {/* Refund Modal */}
+        {showRefundModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Process Refund</h3>
+                <button
+                  onClick={handleRefundModalClose}
+                  className="text-gray-400 hover:text-gray-600"
+                  disabled={refundSubmitting}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  {status === 'CANCELLED' 
+                    ? 'This is a prepaid order. Please upload the refund screenshot and provide transaction ID before cancelling.'
+                    : 'Please upload the refund screenshot and provide transaction ID to complete the refund process.'
+                  }
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                {/* Transaction ID Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Refund Transaction ID <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={refundTransactionId}
+                    onChange={(e) => setRefundTransactionId(e.target.value)}
+                    placeholder="Enter refund transaction ID"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                    disabled={refundSubmitting}
+                  />
+                </div>
+                
+                {/* Screenshot Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Refund Screenshot <span className="text-red-500">*</span>
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                    {refundScreenshot ? (
+                      <div className="space-y-2">
+                        <img
+                          src={URL.createObjectURL(refundScreenshot)}
+                          alt="Refund screenshot"
+                          className="max-h-32 mx-auto rounded"
+                        />
+                        <p className="text-sm text-gray-600">{refundScreenshot.name}</p>
+                        <button
+                          onClick={() => setRefundScreenshot(null)}
+                          className="text-red-600 text-sm hover:text-red-700"
+                          disabled={refundSubmitting}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setRefundScreenshot(e.target.files[0])}
+                          className="hidden"
+                          id="refund-screenshot"
+                          disabled={refundSubmitting}
+                        />
+                        <label
+                          htmlFor="refund-screenshot"
+                          className="cursor-pointer inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                          Click to upload refund screenshot
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleRefundModalClose}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  disabled={refundSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRefundSubmit}
+                  disabled={refundSubmitting || !refundScreenshot || !refundTransactionId.trim()}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {refundSubmitting 
+                    ? 'Processing...' 
+                    : status === 'CANCELLED' 
+                      ? 'Process Refund & Cancel'
+                      : 'Complete Refund Process'
+                  }
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

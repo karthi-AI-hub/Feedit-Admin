@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 
 const COLLECTION_NAME = 'rewards';
-export const checkDuplicates = async (coins, productId, excludeId = null) => {
+export const checkDuplicates = async (coins, productId, variantSku = null, excludeId = null) => {
   try {
     const coinsValue = parseInt(coins);
     if (isNaN(coinsValue) || coinsValue <= 0) {
@@ -35,7 +35,8 @@ export const checkDuplicates = async (coins, productId, excludeId = null) => {
         id: doc.id,
         coins: data.coins,
         productId: data.productId,
-        productName: data.productName
+        productName: data.productName,
+        variant: data.variant
       });
     });
 
@@ -44,15 +45,31 @@ export const checkDuplicates = async (coins, productId, excludeId = null) => {
       return entryCoins === coinsValue;
     });
     
-    const productExists = existingEntries.find(entry => 
-      entry.productId && entry.productId.toString() === productId.toString()
-    );
+    // Check for product + variant combination duplicates
+    const productVariantExists = existingEntries.find(entry => {
+      const sameProduct = entry.productId && entry.productId.toString() === productId.toString();
+      
+      if (!sameProduct) return false;
+      
+      // If both have variants, check if they're the same
+      if (variantSku && entry.variant && entry.variant.sku) {
+        return entry.variant.sku === variantSku;
+      }
+      
+      // If one has variant and other doesn't, they're different
+      if ((variantSku && !entry.variant) || (!variantSku && entry.variant)) {
+        return false;
+      }
+      
+      // If neither has variants, they're the same
+      return !variantSku && !entry.variant;
+    });
 
     return {
       success: true,
       coinsExists,
-      productExists,
-      duplicates: { coinsExists: !!coinsExists, productExists: !!productExists }
+      productVariantExists,
+      duplicates: { coinsExists: !!coinsExists, productVariantExists: !!productVariantExists }
     };
   } catch (error) {
     console.error('Error checking duplicates:', error);
@@ -62,7 +79,8 @@ export const checkDuplicates = async (coins, productId, excludeId = null) => {
 
 export const addPointsProduct = async (pointsProductData) => {
   try {
-    const duplicateCheck = await checkDuplicates(pointsProductData.coins, pointsProductData.productId);
+    const variantSku = pointsProductData.variant ? pointsProductData.variant.sku : null;
+    const duplicateCheck = await checkDuplicates(pointsProductData.coins, pointsProductData.productId, variantSku);
     
     if (!duplicateCheck.success) {
       return { success: false, error: 'Failed to check duplicates' };
@@ -75,10 +93,11 @@ export const addPointsProduct = async (pointsProductData) => {
       };
     }
 
-    if (duplicateCheck.productExists) {
+    if (duplicateCheck.productVariantExists) {
+      const variantText = variantSku ? ` (variant: ${variantSku})` : '';
       return { 
         success: false, 
-        error: `Product "${pointsProductData.productName}" is already assigned to ${duplicateCheck.productExists.coins} coins` 
+        error: `Product "${pointsProductData.productName}"${variantText} already has a Milky Drops redemption value set` 
       };
     }
 
@@ -115,7 +134,8 @@ export const getPointsProducts = async () => {
 
 export const updatePointsProduct = async (id, updateData) => {
   try {
-    const duplicateCheck = await checkDuplicates(updateData.coins, updateData.productId, id);
+    const variantSku = updateData.variant ? updateData.variant.sku : null;
+    const duplicateCheck = await checkDuplicates(updateData.coins, updateData.productId, variantSku, id);
     
     if (!duplicateCheck.success) {
       return { success: false, error: 'Failed to check duplicates' };
@@ -128,10 +148,11 @@ export const updatePointsProduct = async (id, updateData) => {
       };
     }
 
-    if (duplicateCheck.productExists) {
+    if (duplicateCheck.productVariantExists) {
+      const variantText = variantSku ? ` (variant: ${variantSku})` : '';
       return { 
         success: false, 
-        error: `Product "${updateData.productName}" is already assigned to ${duplicateCheck.productExists.coins} coins` 
+        error: `Product "${updateData.productName}"${variantText} already has a Milky Drops redemption value set` 
       };
     }
 

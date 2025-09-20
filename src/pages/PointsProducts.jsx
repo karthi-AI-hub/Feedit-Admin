@@ -44,6 +44,8 @@ export default function PointsProducts() {
   const [editingItem, setEditingItem] = useState(null);
   const [coins, setCoins] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedVariant, setSelectedVariant] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -54,11 +56,60 @@ export default function PointsProducts() {
   }, []);
 
   const getAvailableProducts = () => {
-    const assignedProductIds = pointsProducts
-      .filter(item => editingItem ? item.id !== editingItem.id : true)
-      .map(item => item.productId);
+    const currentProductId = editingItem ? editingItem.productId : null;
+    const currentVariantSku = editingItem && editingItem.variant ? editingItem.variant.sku : null;
     
-    return products.filter(product => !assignedProductIds.includes(product.id));
+    return products.filter(product => {
+      if (editingItem && product.id === currentProductId) {
+        return true;
+      }
+      const variants = getProductVariants(product);
+      
+      if (variants.length <= 1) {
+        const isAssigned = pointsProducts.some(item => 
+          item.productId === product.id && 
+          (!item.variant || !item.variant.sku)
+        );
+        return !isAssigned;
+      } else {
+        const assignedVariants = pointsProducts
+          .filter(item => item.productId === product.id && item.variant && item.variant.sku)
+          .map(item => item.variant.sku);
+        
+        const availableVariants = variants.filter(variant => 
+          !assignedVariants.includes(variant.sku)
+        );
+        
+        return availableVariants.length > 0;
+      }
+    });
+  };
+
+  const handleProductSelection = (productId) => {
+    setSelectedProductId(productId);
+    setSelectedVariant('');
+    
+    const product = products.find(p => p.id === productId);
+    setSelectedProduct(product);
+  };
+
+  const getProductVariants = (product) => {
+    if (!product || !product.variants || !Array.isArray(product.variants)) {
+      return [];
+    }
+    return product.variants.filter(variant => variant && variant.sku);
+  };
+
+  const hasMultipleVariants = (product) => {
+    const variants = getProductVariants(product);
+    return variants.length > 1;
+  };
+
+  const getSelectedVariantInfo = () => {
+    if (!selectedProduct || !selectedVariant) return null;
+    
+    const variants = getProductVariants(selectedProduct);
+    return variants.find(variant => variant.sku === selectedVariant);
   };
 
   const fetchData = async (isRefresh = false) => {
@@ -94,18 +145,36 @@ export default function PointsProducts() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!coins || !selectedProductId) return;
+        if (selectedProduct && hasMultipleVariants(selectedProduct) && !selectedVariant) {
+      setFormError('Please select a variant for this product.');
+      return;
+    }
 
     setIsSubmitting(true);
     setFormError('');
     
     try {
-      const selectedProduct = products.find((p) => p.id === selectedProductId);
+      const selectedProductData = products.find((p) => p.id === selectedProductId);
+      const variantInfo = getSelectedVariantInfo();
       
       const pointsProductData = {
         coins: parseInt(coins),
         productId: selectedProductId,
-        productName: selectedProduct?.name || 'Unknown Product',
+        productName: selectedProductData?.name || 'Unknown Product',
       };
+
+      if (variantInfo) {
+        pointsProductData.variant = {
+          sku: variantInfo.sku,
+          unit: variantInfo.unit,
+          volume: variantInfo.volume,
+          stockQuantity: variantInfo.stockQuantity,
+          regularPrice: variantInfo.regularPrice,
+          salePrice: variantInfo.salePrice,
+          status: variantInfo.status
+        };
+        pointsProductData.productName = `${selectedProductData?.name} (${variantInfo.unit} ${variantInfo.volume})`;
+      }
 
       let result;
       if (editingItem) {
@@ -133,6 +202,16 @@ export default function PointsProducts() {
     setEditingItem(item);
     setCoins(item.coins.toString());
     setSelectedProductId(item.productId);
+    
+    const product = products.find(p => p.id === item.productId);
+    setSelectedProduct(product);
+    
+    if (item.variant && item.variant.sku) {
+      setSelectedVariant(item.variant.sku);
+    } else {
+      setSelectedVariant('');
+    }
+    
     setIsDialogOpen(true);
   };
 
@@ -156,6 +235,8 @@ export default function PointsProducts() {
   const resetForm = () => {
     setCoins('');
     setSelectedProductId('');
+    setSelectedVariant('');
+    setSelectedProduct(null);
     setEditingItem(null);
     setFormError('');
   };
@@ -243,7 +324,7 @@ export default function PointsProducts() {
                 
                 <div className="space-y-2">
                   <Label htmlFor="product">Select Product</Label>
-                  <Select value={selectedProductId} onValueChange={setSelectedProductId} required>
+                  <Select value={selectedProductId} onValueChange={handleProductSelection} required>
                     <SelectTrigger>
                       <SelectValue placeholder={
                         getAvailableProducts().length === 0 
@@ -269,6 +350,56 @@ export default function PointsProducts() {
                     Only showing products without Milky Drops redemption set
                   </p>
                 </div>
+
+                {selectedProduct && hasMultipleVariants(selectedProduct) && (
+                  <div className="space-y-2">
+                    <Label htmlFor="variant">Select Variant</Label>
+                    <Select value={selectedVariant} onValueChange={setSelectedVariant} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a variant" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getProductVariants(selectedProduct).map((variant) => (
+                          <SelectItem key={variant.sku} value={variant.sku}>
+                            <div className="flex justify-between items-center w-full">
+                              <span>{variant.unit} {variant.volume}</span>
+                              <span className="text-sm text-gray-500 ml-2">
+                                Stock: {variant.stockQuantity || 0}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500">
+                      This product has multiple variants. Please select one.
+                    </p>
+                  </div>
+                )}
+
+                {getSelectedVariantInfo() && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h4 className="text-sm font-medium text-blue-900 mb-2">Selected Variant Info</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-blue-700 font-medium">SKU:</span>
+                        <span className="ml-1 text-blue-900">{getSelectedVariantInfo().sku}</span>
+                      </div>
+                      <div>
+                        <span className="text-blue-700 font-medium">Stock:</span>
+                        <span className="ml-1 text-blue-900">{getSelectedVariantInfo().stockQuantity || 0} units</span>
+                      </div>
+                      <div>
+                        <span className="text-blue-700 font-medium">Size:</span>
+                        <span className="ml-1 text-blue-900">{getSelectedVariantInfo().unit} {getSelectedVariantInfo().volume}</span>
+                      </div>
+                      <div>
+                        <span className="text-blue-700 font-medium">Price:</span>
+                        <span className="ml-1 text-blue-900">₹{getSelectedVariantInfo().salePrice || getSelectedVariantInfo().regularPrice}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <DialogFooter className="gap-2">
@@ -283,7 +414,13 @@ export default function PointsProducts() {
                 <Button
                   type="submit"
                   className="bg-green-700 hover:bg-green-800"
-                  disabled={isSubmitting || !coins || !selectedProductId || getAvailableProducts().length === 0}
+                  disabled={
+                    isSubmitting || 
+                    !coins || 
+                    !selectedProductId || 
+                    getAvailableProducts().length === 0 ||
+                    (selectedProduct && hasMultipleVariants(selectedProduct) && !selectedVariant)
+                  }
                 >
                   {isSubmitting ? 'Saving...' : editingItem ? 'Update' : 'Save'}
                 </Button>
@@ -334,6 +471,7 @@ export default function PointsProducts() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
+                  <TableHead>Variant Info</TableHead>
                   <TableHead>Milky Drops Required</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -356,6 +494,23 @@ export default function PointsProducts() {
                           <div className="text-sm text-gray-600">ID: {item.productId}</div>
                         </div>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {item.variant ? (
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium">
+                            {item.variant.unit} {item.variant.volume}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            SKU: {item.variant.sku}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Stock: {item.variant.stockQuantity || 0} units
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400">No variant specified</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-green-700 border-green-200">

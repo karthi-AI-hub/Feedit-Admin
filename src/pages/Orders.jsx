@@ -40,10 +40,20 @@ export default function Orders() {
               onChange={e => setStatusFilter(e.target.value)}
             >
               <option value="all">All</option>
-              <option value="placed">Placed</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="delivered">Delivered</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="payment_pending">Payment Pending</option>
+              <option value="payment_success">Payment Success</option>
+              <option value="payment_failed">Payment Failed</option>
+              <option value="placed">Order Placed</option>
+              <option value="confirmed">Order Confirmed</option>
+              <option value="out_for_delivery">Out for Delivery</option>
+              <option value="delivered">Order Delivered</option>
+              <option value="cancelled">Order Cancelled</option>
+              <option value="return_requested">Return Requested</option>
+              <option value="return_initiated">Return Initiated</option>
+              <option value="return_rejected">Return Rejected</option>
+              <option value="out_for_pickup">Out for Pickup</option>
+              <option value="refund_initiated">Refund Initiated</option>
+              <option value="refund_completed">Refund Completed</option>
             </select>
             <button
               className="flex items-center gap-2 border border-gray-300 rounded px-4 py-2 bg-white hover:bg-gray-100 font-semibold w-fit text-sm shadow-none"
@@ -146,13 +156,27 @@ export default function Orders() {
                         <td className="px-4 py-3">
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-semibold 
+                              ${status.toLowerCase() === 'payment_pending' ? 'bg-gray-100 text-gray-700 border border-gray-400' : ''}
+                              ${status.toLowerCase() === 'payment_success' ? 'bg-green-100 text-green-700 border border-green-400' : ''}
+                              ${status.toLowerCase() === 'payment_failed' ? 'bg-red-100 text-red-600 border border-red-400' : ''}
+                              ${status.toLowerCase() === 'order_placed' ? 'bg-yellow-100 text-yellow-800 border border-yellow-400' : ''}
+                              ${status.toLowerCase() === 'order_confirmed' ? 'bg-blue-100 text-blue-800 border border-blue-400' : ''}
+                              ${status.toLowerCase() === 'out_for_delivery' ? 'bg-purple-100 text-purple-800 border border-purple-400' : ''}
+                              ${status.toLowerCase() === 'order_delivered' ? 'bg-green-100 text-green-700 border border-green-400' : ''}
+                              ${status.toLowerCase() === 'order_cancelled' ? 'bg-red-100 text-red-600 border border-red-400' : ''}
+                              ${status.toLowerCase() === 'return_requested' ? 'bg-orange-100 text-orange-700 border border-orange-400' : ''}
+                              ${status.toLowerCase() === 'return_initiated' ? 'bg-orange-100 text-orange-700 border border-orange-400' : ''}
+                              ${status.toLowerCase() === 'return_rejected' ? 'bg-red-100 text-red-600 border border-red-400' : ''}
+                              ${status.toLowerCase() === 'out_for_pickup' ? 'bg-indigo-100 text-indigo-800 border border-indigo-400' : ''}
+                              ${status.toLowerCase() === 'refund_initiated' ? 'bg-yellow-100 text-yellow-800 border border-yellow-400' : ''}
+                              ${status.toLowerCase() === 'refund_completed' ? 'bg-teal-100 text-teal-800 border border-teal-400' : ''}
                               ${status.toLowerCase() === 'delivered' ? 'bg-green-100 text-green-700 border border-green-400' : ''}
                               ${status.toLowerCase() === 'cancelled' ? 'bg-red-100 text-red-600 border border-red-400' : ''}
                               ${status.toLowerCase() === 'confirmed' ? 'bg-blue-100 text-blue-800 border border-blue-400' : ''}
                               ${status.toLowerCase() === 'placed' ? 'bg-yellow-100 text-yellow-800 border border-yellow-400' : ''}
                             `}
                           >
-                          {status.toUpperCase()}
+                          {status.toUpperCase().replace(/_/g, ' ')}
                           </span>
                         </td>
                         <td className="px-4 py-3">

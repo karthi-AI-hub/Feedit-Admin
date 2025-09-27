@@ -983,7 +983,7 @@ export default function ProductForm({
                     <input
                       id={`${mode}-productBrochure`}
                       type="file"
-                      accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg,.doc,.docx,.txt"
+                      accept=".pdf,application/pdf"
                       multiple={false}
                       onChange={handleBrochureUpload}
                       className="hidden"
@@ -1001,7 +1001,7 @@ export default function ProductForm({
                       {isLoading ? "Loading..." : "📁 Select File from Gallery"}
                     </Button>
                     <span className="text-sm text-gray-500">
-                      Max size: 10MB
+                      PDF files only, Max size: 10MB
                     </span>
                   </div>
                 </div>

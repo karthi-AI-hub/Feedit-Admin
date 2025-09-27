@@ -29,7 +29,7 @@ export function validateBrochureFile(file: File): { isValid: boolean; error?: st
   const config = BROCHURE_CONFIG.VALIDATION;
   
   if (!(config.ALLOWED_MIME_TYPES as readonly string[]).includes(file.type)) {
-    return { isValid: false, error: 'Only images (JPG, PNG, GIF, WebP, BMP, SVG), PDFs, and documents (DOC, DOCX, TXT) are allowed' };
+    return { isValid: false, error: 'Only PDF files are allowed for product brochures' };
   }
 
   if (file.size > config.MAX_FILE_SIZE) {

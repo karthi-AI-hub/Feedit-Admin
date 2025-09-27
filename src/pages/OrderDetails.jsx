@@ -163,7 +163,7 @@ const OrderDetails = () => {
   };
 
   const isPrepaidOrder = () => {
-    return order?.paymentStatus === 1;
+    return order?.paymentMethod === 1;
   };
 
   // Helper function to format timestamps properly
@@ -431,8 +431,6 @@ const OrderDetails = () => {
               <h3 className="font-semibold text-gray-900">Order Info</h3>
             </div>
             <div className="space-y-2 text-sm">
-              <div><span className="font-medium">Shipping:</span> {order.shippingMethod ?? 'Standard Delivery'}</div>
-              <div><span className="font-medium">Payment Method:</span> {order.paymentMethod ?? 'Cash on Delivery'}</div>
               <div><span className="font-medium">Payment Type:</span> 
                 <span className={`ml-1 px-2 py-1 rounded text-xs font-medium ${
                   !isPrepaidOrder() 
@@ -442,7 +440,10 @@ const OrderDetails = () => {
                   {!isPrepaidOrder() ? 'Cash on Delivery' : 'Prepaid'}
                 </span>
               </div>
-              <div><span className="font-medium">Status:</span> {status || order.orderStatus}</div>
+              {isPrepaidOrder() && (
+                <div><span className="font-medium">Transaction ID:</span> {order.razorpayPaymentId || order.paymentId || order.transactionId || '-'}</div>
+              )}
+              <div><span className="font-medium">Status:</span> {status || order.orderStatus || '-'}</div>
             </div>
             {/* <button className="w-full mt-4 bg-green-700 text-white py-2 rounded text-sm"
             disabled
@@ -481,24 +482,7 @@ const OrderDetails = () => {
           </div>
         </div>
 
-        {/* Main Content - Payment Info and Progress Side by Side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Payment Info - Left Side */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Payment Info</h3>
-            <div className="flex items-start gap-4 mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-5 bg-red-500 rounded-sm flex items-center justify-center">
-                  <div className="w-4 h-3 bg-yellow-400 rounded-sm"></div>
-                </div>
-                <span className="text-sm font-medium">{order.paymentMethod ?? 'Cash on Delivery'}</span>
-              </div>
-            </div>
-            <div className="space-y-1 text-sm text-gray-600">
-              <div>Business name: {order.address ? `${order.address.firstName || ''} ${order.address.lastName || ''}`.trim() : '-'}</div>
-              <div>Phone: {order.address?.phoneNumber ?? order.address?.phone ?? '-'}</div>
-            </div>
-            
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 mb-6">
             {/* Refund Information - Show when order is cancelled with refund data */}
             {(order.orderStatus?.toLowerCase() === 'cancelled' || order.orderStatus?.toLowerCase() === 'refund_completed') && order.refund && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -510,9 +494,6 @@ const OrderDetails = () => {
                   <div>
                     <span className="font-medium">Refunded On:</span>{' '}
                     {formatTimestamp(order.refund.refundedAt)}
-                  </div>
-                  <div>
-                    <span className="font-medium">Refunded By:</span> {order.refund.refundedBy || 'Admin'}
                   </div>
                   {order.refund.screenshot && (
                     <div>
@@ -528,72 +509,67 @@ const OrderDetails = () => {
                 </div>
               </div>
             )}
-          </div>
 
           {/* Order Progress - Right Side */}
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold text-gray-900">Bought - Awaiting Delivery</h3>
-              {/* <button className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Download Invoice
-              </button> */}
+              <h3 className="font-semibold text-gray-900">Order Progress</h3>
             </div>
             
-            {/* Progress Timeline */}
             <div className="relative">
-              {/* Vertical line background */}
-              <div className="absolute left-4 top-8 bottom-8 w-0.5 bg-gray-200"></div>
+              <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200"></div>
               
-              <div className="space-y-6 relative">
+              <div className={`absolute top-4 left-0 h-0.5 z-5 ${
+                ['confirmed', 'out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
+                  ? 'bg-green-500' 
+                  : ['placed'].includes(order.orderStatus?.toLowerCase())
+                  ? 'bg-green-500'
+                  : 'bg-gray-200'
+              }`} style={{
+                width: order.orderStatus?.toLowerCase() === 'delivered' ? '100%' :
+                       order.orderStatus?.toLowerCase() === 'out_for_delivery' ? '66.66%' :
+                       order.orderStatus?.toLowerCase() === 'confirmed' ? '33.33%' :
+                       order.orderStatus?.toLowerCase() === 'placed' ? '0%' : '0%'
+              }}></div>
+              
+              <div className="flex items-center justify-between mb-8 relative">
                 {/* Order Placed */}
-                <div className="flex items-center gap-4 relative">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center z-10 ${
+                <div className="flex flex-col items-center relative">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center z-20 bg-white border-2 ${
                     ['placed', 'confirmed', 'out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase()) 
-                      ? 'bg-green-500' : 'bg-gray-300'
+                      ? 'border-green-500' : 'border-gray-300'
                   }`}>
                     <svg className={`w-4 h-4 ${
                       ['placed', 'confirmed', 'out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
-                        ? 'text-white' : 'text-gray-500'
+                        ? 'text-green-500' : 'text-gray-500'
                     }`} fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      <path fillRule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 00.994-1.11l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zM8 6a2 2 0 114 0v1H8V6zm0 3a1 1 0 012 0v3a1 1 0 11-2 0V9z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  {/* Progress line to next step */}
-                  <div className={`absolute left-4 top-8 w-0.5 h-6 ${
-                    ['confirmed', 'out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
-                      ? 'bg-green-500' : 'bg-gray-200'
-                  }`}></div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">Order Placed</div>
+                  <div className="mt-2 text-center">
+                    <div className="text-xs font-medium">Order Placed</div>
                     <div className="text-xs text-gray-500">
                       {formatTimestamp(order.orderPlacedAt || order.orderDate)}
                     </div>
                   </div>
                 </div>
 
-                {/* Order Confirmed */}
-                <div className="flex items-center gap-4 relative">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center z-10 ${
-                    ['confirmed', 'out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
-                      ? 'bg-green-500' : 'bg-gray-300'
-                  }`}>
-                    <svg className={`w-4 h-4 ${
+                  {/* Order Confirmed */}
+                  <div className="flex flex-col items-center relative">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center z-20 bg-white border-2 ${
                       ['confirmed', 'out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
-                        ? 'text-white' : 'text-gray-500'
-                    }`} fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  {/* Progress line to next step */}
-                  <div className={`absolute left-4 top-8 w-0.5 h-6 ${
-                    ['out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
-                      ? 'bg-green-500' : 'bg-gray-200'
-                  }`}></div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">Order Confirmed</div>
+                        ? 'border-green-500' : 'border-gray-300'
+                    }`}>
+                      <svg className={`w-4 h-4 ${
+                        ['confirmed', 'out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
+                          ? 'text-green-500' : 'text-gray-500'
+                      }`} fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+
+                  <div className="mt-2 text-center">
+                    <div className="text-xs font-medium">Order Confirmed</div>
                     <div className="text-xs text-gray-500">
                       {formatTimestamp(order.orderConfirmedAt)}
                     </div>
@@ -601,78 +577,90 @@ const OrderDetails = () => {
                 </div>
 
                 {/* Out for Delivery */}
-                <div className="flex items-center gap-4 relative">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center z-10 ${
+                <div className="flex flex-col items-center relative">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center z-20 bg-white border-2 ${
                     ['out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
-                      ? 'bg-green-500' : 'bg-gray-300'
+                      ? 'border-green-500' : 'border-gray-300'
                   }`}>
                     <svg className={`w-4 h-4 ${
                       ['out_for_delivery', 'delivered'].includes(order.orderStatus?.toLowerCase())
-                        ? 'text-white' : 'text-gray-500'
+                        ? 'text-green-500' : 'text-gray-500'
                     }`} fill="currentColor" viewBox="0 0 20 20">
                       <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
                       <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707L16 7.586A1 1 0 0015.414 7H14z" />
                     </svg>
                   </div>
-                  {/* Progress line to next step */}
-                  <div className={`absolute left-4 top-8 w-0.5 h-6 ${
-                    order.orderStatus?.toLowerCase() === 'delivered'
-                      ? 'bg-green-500' : 'bg-gray-200'
-                  }`}></div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">Out for Delivery</div>
+                  <div className="mt-2 text-center">
+                    <div className="text-xs font-medium">Out for Delivery</div>
                     <div className="text-xs text-gray-500">
                       {formatTimestamp(order.outForDeliveryAt)}
                     </div>
                   </div>
                 </div>
 
-                {/* Order Delivered */}
-                <div className="flex items-center gap-4 relative">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center z-10 ${
-                    order.orderStatus?.toLowerCase() === 'delivered' ? 'bg-green-500' : 'bg-gray-300'
-                  }`}>
+                  {/* Order Delivered */}
+                  <div className="flex flex-col items-center">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center z-20 bg-white border-2 ${
+                      order.orderStatus?.toLowerCase() === 'delivered' ? 'border-green-500' : 'border-gray-300'
+                    }`}>
                     <svg className={`w-4 h-4 ${
-                      order.orderStatus?.toLowerCase() === 'delivered' ? 'text-white' : 'text-gray-500'
+                      order.orderStatus?.toLowerCase() === 'delivered' ? 'text-green-500' : 'text-gray-500'
                     }`} fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
                     </svg>
                   </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">Order Delivered</div>
+                  <div className="mt-2 text-center">
+                    <div className="text-xs font-medium">Order Delivered</div>
                     <div className="text-xs text-gray-500">
                       {formatTimestamp(order.orderDeliveredAt)}
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Return/Refund Flow - Show only if applicable */}
-                {['return_requested', 'return_initiated', 'return_rejected', 'out_for_pickup', 'refund_initiated', 'refund_completed'].includes(order.orderStatus?.toLowerCase()) && (
-                  <>
-                    <div className="border-t pt-6 mt-4 relative">
-                      {/* Return section vertical line */}
-                      <div className="absolute left-3 top-12 bottom-0 w-0.5 bg-orange-200"></div>
-                      
-                      <div className="text-sm font-medium text-orange-600 mb-4">Return/Refund Process</div>
-                      
+              {/* Return/Refund Flow - Show only if applicable */}
+              {['return_requested', 'return_initiated', 'return_rejected', 'out_for_pickup', 'refund_initiated', 'refund_completed'].includes(order.orderStatus?.toLowerCase()) && (
+                <div className="border-t pt-6 mt-4">
+                  <div className="text-sm font-medium text-orange-600 mb-4">Return/Refund Process</div>
+                  
+                  <div className="relative">
+                    {/* Background connecting line for return/refund */}
+                    <div className="absolute top-3 left-0 right-0 h-0.5 bg-gray-200"></div>
+                    
+                    {/* Progress overlay line for return/refund */}
+                    <div className={`absolute top-3 left-0 h-0.5 z-5 ${
+                      ['refund_completed'].includes(order.orderStatus?.toLowerCase())
+                        ? 'bg-orange-500' 
+                        : ['refund_initiated'].includes(order.orderStatus?.toLowerCase())
+                        ? 'bg-orange-500'
+                        : ['return_initiated', 'out_for_pickup'].includes(order.orderStatus?.toLowerCase())
+                        ? 'bg-orange-500'
+                        : ['return_requested'].includes(order.orderStatus?.toLowerCase())
+                        ? 'bg-orange-500'
+                        : 'bg-gray-200'
+                    }`} style={{
+                      width: order.orderStatus?.toLowerCase() === 'refund_completed' ? '100%' :
+                             order.orderStatus?.toLowerCase() === 'refund_initiated' ? '66.66%' :
+                             order.orderStatus?.toLowerCase() === 'out_for_pickup' ? '33.33%' :
+                             order.orderStatus?.toLowerCase() === 'return_initiated' ? '33.33%' :
+                             order.orderStatus?.toLowerCase() === 'return_requested' ? '0%' : '0%'
+                    }}></div>
+                    
+                    <div className="flex items-center justify-between relative">
                       {/* Return Requested */}
-                      <div className="flex items-center gap-4 mb-4 relative">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center z-10 ${
+                      <div className="flex flex-col items-center relative">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center z-20 bg-white border-2 ${
                           ['return_requested', 'return_initiated', 'out_for_pickup', 'refund_initiated', 'refund_completed'].includes(order.orderStatus?.toLowerCase())
-                            ? 'bg-orange-500' : 'bg-gray-300'
+                            ? 'border-orange-500' : 'border-gray-300'
                         }`}>
                           <svg className={`w-3 h-3 ${
                             ['return_requested', 'return_initiated', 'out_for_pickup', 'refund_initiated', 'refund_completed'].includes(order.orderStatus?.toLowerCase())
-                              ? 'text-white' : 'text-gray-500'
+                              ? 'text-orange-500' : 'text-gray-500'
                           }`} fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M9 15l3-3m0 0l3 3m-3-3v12a6 6 0 01-6-6V9h.003A6 6 0 016 3a6 6 0 016 6v6z" clipRule="evenodd" />
+                            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
                           </svg>
                         </div>
-                        {/* Progress line to next step */}
-                        {order.orderStatus?.toLowerCase() === 'refund_completed' && (
-                          <div className="absolute left-3 top-6 w-0.5 h-4 bg-orange-500"></div>
-                        )}
-                        <div className="flex-1">
+                        <div className="mt-2 text-center">
                           <div className="text-xs font-medium">Return Requested</div>
                           <div className="text-xs text-gray-500">
                             {formatTimestamp(order.returnRequestedAt)}
@@ -680,26 +668,74 @@ const OrderDetails = () => {
                         </div>
                       </div>
 
-                      {/* Refund Completed */}
-                      {order.orderStatus?.toLowerCase() === 'refund_completed' && (
-                        <div className="flex items-center gap-4 relative">
-                          <div className="w-6 h-6 rounded-full bg-teal-500 flex items-center justify-center z-10">
-                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
+                      {/* Return Approved / Out for Pickup */}
+                      <div className="flex flex-col items-center relative">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center z-20 bg-white border-2 ${
+                          ['return_initiated', 'out_for_pickup', 'refund_initiated', 'refund_completed'].includes(order.orderStatus?.toLowerCase())
+                            ? 'border-orange-500' : 'border-gray-300'
+                        }`}>
+                          <svg className={`w-3 h-3 ${
+                            ['return_initiated', 'out_for_pickup', 'refund_initiated', 'refund_completed'].includes(order.orderStatus?.toLowerCase())
+                              ? 'text-orange-500' : 'text-gray-500'
+                          }`} fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                            <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707L16 7.586A1 1 0 0015.414 7H14z" />
+                          </svg>
+                        </div>
+                        <div className="mt-2 text-center">
+                          <div className="text-xs font-medium">
+                            {order.orderStatus?.toLowerCase() === 'out_for_pickup' ? 'Out for Pickup' : 'Return Approved'}
                           </div>
-                          <div className="flex-1">
-                            <div className="text-xs font-medium">Refund Completed</div>
-                            <div className="text-xs text-gray-500">
-                              {formatTimestamp(order.refundCompletedAt)}
-                            </div>
+                          <div className="text-xs text-gray-500">
+                            {formatTimestamp(order.returnInitiatedAt || order.outForPickupAt)}
                           </div>
                         </div>
-                      )}
+                      </div>
+
+                      {/* Refund Initiated */}
+                      <div className="flex flex-col items-center relative">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center z-20 bg-white border-2 ${
+                          ['refund_initiated', 'refund_completed'].includes(order.orderStatus?.toLowerCase())
+                            ? 'border-orange-500' : 'border-gray-300'
+                        }`}>
+                          <svg className={`w-3 h-3 ${
+                            ['refund_initiated', 'refund_completed'].includes(order.orderStatus?.toLowerCase())
+                              ? 'text-orange-500' : 'text-gray-500'
+                          }`} fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2h12v2H4V6zm0 4h12v4H4v-4z" />
+                          </svg>
+                        </div>
+                        <div className="mt-2 text-center">
+                          <div className="text-xs font-medium">Refund Initiated</div>
+                          <div className="text-xs text-gray-500">
+                            {formatTimestamp(order.refundInitiatedAt)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Refund Completed */}
+                      <div className="flex flex-col items-center">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center z-20 bg-white border-2 ${
+                          order.orderStatus?.toLowerCase() === 'refund_completed' 
+                            ? 'border-teal-500' : 'border-gray-300'
+                        }`}>
+                          <svg className={`w-3 h-3 ${
+                            order.orderStatus?.toLowerCase() === 'refund_completed' ? 'text-teal-500' : 'text-gray-500'
+                          }`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.736 6.979C9.208 6.193 9.696 6 10 6c.304 0 .792.193 1.264.979a1 1 0 001.715-1.029C12.279 4.784 11.232 4 10 4s-2.279.784-2.979 1.95c-.285.475-.507 1.001-.612 1.5C6.279 7.784 6 8.202 6 9s.279 1.216.409 1.55c.105.499.327 1.025.612 1.5C7.721 13.216 8.768 14 10 14s2.279-.784 2.979-1.95a1 1 0 10-1.715-1.029C11.792 11.807 11.304 12 11 12c-.304 0-.792-.193-1.264-.979C9.208 10.193 9 9.598 9 9s.208-1.193.736-2.021z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="mt-2 text-center">
+                          <div className="text-xs font-medium">Refund Completed</div>
+                          <div className="text-xs text-gray-500">
+                            {formatTimestamp(order.refundCompletedAt)}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </>
-                )}
-              </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

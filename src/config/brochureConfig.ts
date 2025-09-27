@@ -1,26 +1,11 @@
 export const BROCHURE_CONFIG = {
   VALIDATION: {
-    MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB in bytes (increased for images)
+    MAX_FILE_SIZE: 10 * 1024 * 1024,
     ALLOWED_MIME_TYPES: [
-      // PDF files
-      'application/pdf',
-      // Image files
-      'image/jpeg',
-      'image/jpg', 
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'image/bmp',
-      'image/svg+xml',
-      // Document files
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain'
+      'application/pdf'
     ],
     ALLOWED_EXTENSIONS: [
-      '.pdf', 
-      '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg',
-      '.doc', '.docx', '.txt'
+      '.pdf'
     ],
     MIN_FILE_SIZE: 1024, // 1KB minimum
   },
@@ -50,7 +35,7 @@ export const BROCHURE_CONFIG = {
   // Error messages for better user experience
   ERROR_MESSAGES: {
     FILE_TOO_LARGE: `File size exceeds 10MB limit`,
-    INVALID_TYPE: 'Only images (JPG, PNG, GIF, WebP, BMP, SVG), PDFs, and documents (DOC, DOCX, TXT) are allowed',
+    INVALID_TYPE: 'Only PDF files are allowed for product brochures',
     UPLOAD_FAILED: 'Failed to upload file',
     DELETE_FAILED: 'Failed to delete file',
     FETCH_FAILED: 'Failed to fetch file',
